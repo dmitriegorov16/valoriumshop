@@ -3,15 +3,6 @@ import aiosqlite
 from app.database.init import DB_PATH
 
 
-async def new_registration(user_id):
-    async with aiosqlite.connect(DB_PATH) as conn:
-        await conn.execute(
-            "INSERT OR IGNORE INTO user_info(user_id) VALUES (?)",
-            (user_id,),
-        )
-        await conn.commit()
-
-
 async def mark_user_subscribed(user_id):
     async with aiosqlite.connect(DB_PATH) as conn:
         await conn.execute(

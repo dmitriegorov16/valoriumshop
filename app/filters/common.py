@@ -1,7 +1,7 @@
 from aiogram.filters import BaseFilter
 from aiogram.types import CallbackQuery, Message
 
-from app.database.filters_queries import is_user_subscribed
+from app.database.queries.filters_queries import is_user_subscribed
 
 
 class IsSubscribed(BaseFilter):
