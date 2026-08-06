@@ -3,6 +3,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message, PreCheckoutQuery
+from aiosend.types import Invoice
 
 from app.database.queries.balance_queries import get_balance, top_up_balance
 from app.database.queries.categories_queries import (
@@ -24,6 +25,7 @@ from app.database.queries.products_queries import get_product, get_product_photo
 from app.database.queries.user_queries import get_registered_at
 from app.filters.common import IsSubscribed
 from app.keyboards import inline as kb
+from app.payments.crypto_bot import cp, create_crypto_bot_invoice
 from app.payments.stars import create_stars_invoice_link
 from app.states import PaymentStates
 from app.utils.is_sub import is_subscribed
@@ -172,11 +174,31 @@ async def process_crypto_bot(callback: CallbackQuery, state: FSMContext):
     payment_id = data["payment_id"]
 
     await update_payment_method(payment_id, "crypto_bot")
+    amount = await get_amount(payment_id)
+
+    payment_link = await create_crypto_bot_invoice(
+        amount,
+        payment_id,
+        callback.message,
+    )
 
     await callback.message.edit_caption(
-        caption="крипто боть",
-        reply_markup=kb.cancel_payment,
+        caption=f"Оплата {amount} руб",
+        reply_markup=kb.create_crypto_bot_payment(payment_link),
     )
+
+
+@cp.invoice_paid()
+async def handle_payment(invoice: Invoice, message: Message):
+    payment_id = invoice.payload
+    charge_id = invoice.invoice_id
+    user_id = message.from_user.id
+
+    await mark_payment_paid(payment_id, charge_id)
+
+    await message.answer("Оплата прошла успешно! ✅")
+    amount = await get_amount(payment_id)
+    await top_up_balance(user_id, amount)
 
 
 @user.callback_query(F.data == "stars_selection")
@@ -188,6 +210,7 @@ async def process_stars(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
     await update_payment_method(payment_id, "stars")
     amount = await get_amount(payment_id)
+
     payment_link = await create_stars_invoice_link(
         bot,
         payment_id,

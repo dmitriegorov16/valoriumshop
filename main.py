@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 
 from app.database.init import init_db
+from app.payments.crypto_bot import cp
 from app.routers.register import register
 from app.routers.user import user
 
@@ -16,7 +17,10 @@ async def main():
     dp.startup.register(startup)
     dp.shutdown.register(shutdown)
     dp.include_routers(user, register)
-    await dp.start_polling(bot)
+    await asyncio.gather(
+        dp.start_polling(bot),
+        cp.start_polling(),
+    )
 
 
 async def startup(dispatcher: Dispatcher):
