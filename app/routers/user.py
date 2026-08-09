@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message, PreCheckoutQuery
 from aiosend.types import Invoice
 
-from app.database.queries.balance_queries import get_balance, top_up_balance
+from app.database.queries.balance_queries import deduct_balance, get_balance, top_up_balance
 from app.database.queries.categories_queries import (
     get_categories,
     get_category_name,
@@ -29,7 +29,12 @@ from app.database.queries.products_queries import (
     get_products,
     set_out_of_stock,
 )
-from app.database.queries.stock_queries import get_auto_quantity_stock, get_manual_quantity_stock
+from app.database.queries.stock_queries import (
+    get_auto_quantity_stock,
+    get_digital_stock_content,
+    get_manual_quantity_stock,
+    set_order_id,
+)
 from app.database.queries.user_queries import get_registered_at
 from app.filters.common import IsSubscribed
 from app.keyboards import inline as kb
@@ -304,7 +309,7 @@ async def process_buy(callback: CallbackQuery):
     product_id = int(callback.data.split("_")[1])
     product = await get_product(product_id)
     product_price = int(product["price"])
-    user_id = callback.message.from_user.id
+    user_id = callback.from_user.id
     user_balance = int(await get_balance(user_id))
 
     if user_balance < product_price:
@@ -324,7 +329,10 @@ async def process_buy(callback: CallbackQuery):
                 await set_out_of_stock(product_id)
             else:
                 order_id = await create_order(user_id, product_id, delivery_type, product_price)
-
+                stock = await get_digital_stock_content(product_id)
+                await set_order_id(stock["id"], order_id)
+                await callback.message.answer(stock["content"])
+                await deduct_balance(user_id, product_price)
         elif delivery_type == "manual":
             quantity_stock = await get_manual_quantity_stock(product_id)
             if quantity_stock < 1:
@@ -335,6 +343,7 @@ async def process_buy(callback: CallbackQuery):
                 await set_out_of_stock(product_id)
             else:
                 order_id = await create_order(user_id, product_id, delivery_type, product_price)
+                # дописать manual выдачу
 
 
 @user.callback_query(F.data == "back_main")

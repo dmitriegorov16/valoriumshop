@@ -32,7 +32,7 @@ async def init_db():
                 price INTEGER NOT NULL,
                 image TEXT DEFAULT NULL,
                 delivery_type TEXT NOT NULL CHECK (delivery_type IN ('auto', 'manual')), 
-                in_stock BOOLEAN DEFAULT FALSE,
+                in_stock INTEGER NOT NULL DEFAULT 0 CHECK (in_stock IN (0, 1)),
                 FOREIGN KEY (category_id) REFERENCES categories(category_id) 
             )
         """)
