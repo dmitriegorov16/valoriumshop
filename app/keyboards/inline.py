@@ -81,3 +81,11 @@ def create_crypto_bot_payment(payment_link: str):
             [InlineKeyboardButton(text="Отмена", callback_data="profile")],
         ]
     )
+
+
+not_money = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Пополнить", callback_data="top_up")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_main")],
+    ],
+)

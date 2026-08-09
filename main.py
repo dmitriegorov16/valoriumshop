@@ -17,10 +17,17 @@ async def main():
     dp.startup.register(startup)
     dp.shutdown.register(shutdown)
     dp.include_routers(user, register)
-    await asyncio.gather(
-        dp.start_polling(bot),
-        cp.start_polling(),
-    )
+
+    tasks = [
+        asyncio.create_task(dp.start_polling(bot)),
+        asyncio.create_task(cp.start_polling()),
+    ]
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    for task in pending:
+        task.cancel()
+    await asyncio.gather(*pending, return_exceptions=True)
+    for task in done:
+        task.result()
 
 
 async def startup(dispatcher: Dispatcher):
