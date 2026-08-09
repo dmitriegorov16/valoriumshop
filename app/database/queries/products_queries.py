@@ -7,7 +7,7 @@ from app.types.products import Product
 async def get_products(category_id) -> list[Product]:
     async with aiosqlite.connect(DB_PATH) as conn:
         cursor = await conn.execute(
-            "SELECT product_id, category_id, name, description, price FROM products WHERE category_id = ?",
+            "SELECT product_id, category_id, name, description, price FROM products WHERE category_id = ? AND in_stock = TRUE",
             (category_id,),
         )
         rows = await cursor.fetchall()
@@ -54,3 +54,23 @@ async def get_product_photo(product_id):
 
         row = await cursor.fetchone()
         return row[0]
+
+
+async def get_delivery_type(product_id):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        cursor = await conn.execute(
+            "SELECT delivery_type FROM products WHERE product_id = ?",
+            (product_id,),
+        )
+
+        row = await cursor.fetchone()
+        return row[0]
+
+
+async def set_out_of_stock(product_id):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            "UPDATE products SET in_stock = FALSE WHERE product_id = ?",
+            (product_id),
+        )
+        await conn.commit()

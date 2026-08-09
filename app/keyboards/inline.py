@@ -72,3 +72,20 @@ def create_stars_payment(payment_link: str):
             [InlineKeyboardButton(text="Отмена", callback_data="profile")],
         ]
     )
+
+
+def create_crypto_bot_payment(payment_link: str):
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Оплатить 🤖", url=payment_link)],
+            [InlineKeyboardButton(text="Отмена", callback_data="profile")],
+        ]
+    )
+
+
+not_money = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Пополнить", callback_data="top_up")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_main")],
+    ],
+)

@@ -3,6 +3,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message, PreCheckoutQuery
+from aiosend.types import Invoice
 
 from app.database.queries.balance_queries import get_balance, top_up_balance
 from app.database.queries.categories_queries import (
@@ -13,6 +14,7 @@ from app.database.queries.categories_queries import (
     get_subcategories,
 )
 from app.database.queries.filters_queries import mark_user_subscribed, mark_user_unsubscribed
+from app.database.queries.orders_queries import create_order
 from app.database.queries.payments_queries import (
     create_payment,
     get_amount,
@@ -20,16 +22,24 @@ from app.database.queries.payments_queries import (
     mark_payment_paid,
     update_payment_method,
 )
-from app.database.queries.products_queries import get_product, get_product_photo, get_products
+from app.database.queries.products_queries import (
+    get_delivery_type,
+    get_product,
+    get_product_photo,
+    get_products,
+    set_out_of_stock,
+)
+from app.database.queries.stock_queries import get_auto_quantity_stock, get_manual_quantity_stock
 from app.database.queries.user_queries import get_registered_at
 from app.filters.common import IsSubscribed
 from app.keyboards import inline as kb
+from app.payments.crypto_bot import cp, create_crypto_bot_invoice
 from app.payments.stars import create_stars_invoice_link
 from app.states import PaymentStates
 from app.utils.is_sub import is_subscribed
 from app.utils.menu import edit_main_menu, show_main_menu
 from app.utils.menu_builder import menu_builder
-from app.utils.product_builder import product_builder
+from app.utils.product_builder import product_builder, products_builder
 
 user = Router()
 user.message.filter(IsSubscribed())
@@ -172,11 +182,31 @@ async def process_crypto_bot(callback: CallbackQuery, state: FSMContext):
     payment_id = data["payment_id"]
 
     await update_payment_method(payment_id, "crypto_bot")
+    amount = await get_amount(payment_id)
+
+    payment_link = await create_crypto_bot_invoice(
+        amount,
+        payment_id,
+        callback.message,
+    )
 
     await callback.message.edit_caption(
-        caption="крипто боть",
-        reply_markup=kb.cancel_payment,
+        caption=f"Оплата {amount} руб",
+        reply_markup=kb.create_crypto_bot_payment(payment_link),
     )
+
+
+@cp.invoice_paid()
+async def handle_payment(invoice: Invoice, message: Message):
+    payment_id = invoice.payload
+    charge_id = invoice.invoice_id
+    user_id = message.from_user.id
+
+    await mark_payment_paid(payment_id, charge_id)
+
+    await message.answer("Оплата прошла успешно! ✅")
+    amount = await get_amount(payment_id)
+    await top_up_balance(user_id, amount)
 
 
 @user.callback_query(F.data == "stars_selection")
@@ -188,6 +218,7 @@ async def process_stars(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
     await update_payment_method(payment_id, "stars")
     amount = await get_amount(payment_id)
+
     payment_link = await create_stars_invoice_link(
         bot,
         payment_id,
@@ -241,7 +272,7 @@ async def open_category(callback: CallbackQuery):
         reply_markup = menu_builder(categories, back_callback)
     else:
         products = await get_products(category_id)
-        reply_markup = product_builder(products, back_callback)
+        reply_markup = products_builder(products, back_callback)
 
     await callback.message.edit_media(
         media=InputMediaPhoto(
@@ -264,8 +295,46 @@ async def open_product(callback: CallbackQuery):
             media=photo,
             caption=f"{product['name']}\n\n{product['description']}\n\nЦена: {product['price']}",
         ),
-        reply_markup=product_builder([], back_callback),
+        reply_markup=product_builder(product_id, back_callback),
     )
+
+
+@user.callback_query(F.data.startswith("buy_"))
+async def process_buy(callback: CallbackQuery):
+    product_id = int(callback.data.split("_")[1])
+    product = await get_product(product_id)
+    product_price = int(product["price"])
+    user_id = callback.message.from_user.id
+    user_balance = int(await get_balance(user_id))
+
+    if user_balance < product_price:
+        await callback.message.edit_caption(
+            caption=f"Нехватает {abs(user_balance - product_price)} руб",
+            reply_markup=kb.not_money,
+        )
+    else:
+        delivery_type = await get_delivery_type(product_id)
+        if delivery_type == "auto":
+            quantity_stock = await get_auto_quantity_stock(product_id)
+            if quantity_stock < 1:
+                await callback.message.edit_caption(
+                    caption="К сожалению товара нету в наличии",
+                    reply_markup=kb.back_main_menu,
+                )
+                await set_out_of_stock(product_id)
+            else:
+                order_id = await create_order(user_id, product_id, delivery_type, product_price)
+
+        elif delivery_type == "manual":
+            quantity_stock = await get_manual_quantity_stock(product_id)
+            if quantity_stock < 1:
+                await callback.message.edit_caption(
+                    caption="К сожалению товара нету в наличии",
+                    reply_markup=kb.back_main_menu,
+                )
+                await set_out_of_stock(product_id)
+            else:
+                order_id = await create_order(user_id, product_id, delivery_type, product_price)
 
 
 @user.callback_query(F.data == "back_main")
