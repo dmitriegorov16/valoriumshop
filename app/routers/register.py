@@ -24,7 +24,7 @@ async def cmd_start(message: Message):
 
     if subscribed:
         await mark_user_subscribed(user_id)
-        await show_main_menu(message)
+        await show_main_menu(message, user_id)
     else:
         await mark_user_unsubscribed(user_id)
         await message.answer(

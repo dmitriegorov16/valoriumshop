@@ -3,6 +3,8 @@ import os
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dotenv import load_dotenv
 
+from app.database.queries.user_queries import get_account_type
+
 load_dotenv()
 CHANNEL_NAME = os.getenv("CHANNEL_NAME")
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")
@@ -15,15 +17,42 @@ check_subscription_keyboard = InlineKeyboardMarkup(
 )
 
 
-main_menu_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(text="Каталог", callback_data="catalog"),
-            InlineKeyboardButton(text="Профиль", callback_data="profile"),
-        ],
-        [InlineKeyboardButton(text="Поддержка", callback_data="support")],
-    ],
-)
+# main_menu_keyboard = InlineKeyboardMarkup(
+#     inline_keyboard=[
+#         [
+#             InlineKeyboardButton(text="Каталог", callback_data="catalog"),
+#             InlineKeyboardButton(text="Профиль", callback_data="profile"),
+#         ],
+#         [InlineKeyboardButton(text="Поддержка", callback_data="support")],
+#     ],
+# )
+
+
+async def main_menu_keyboard(user_id):
+    account_type = await get_account_type(user_id)
+
+    if account_type == "admin":
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="Каталог", callback_data="catalog"),
+                    InlineKeyboardButton(text="Профиль", callback_data="profile"),
+                ],
+                [InlineKeyboardButton(text="Поддержка", callback_data="support")],
+                [InlineKeyboardButton(text="Админ панель", callback_data="admin_panel")],
+            ]
+        )
+
+    else:
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="Каталог", callback_data="catalog"),
+                    InlineKeyboardButton(text="Профиль", callback_data="profile"),
+                ],
+                [InlineKeyboardButton(text="Поддержка", callback_data="support")],
+            ]
+        )
 
 
 profile_keyboard = InlineKeyboardMarkup(

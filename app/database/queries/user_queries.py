@@ -36,3 +36,19 @@ async def get_registered_at(user_id: int) -> str | None:
             return None
 
         return row[0]
+
+
+async def get_account_type(user_id):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        cursor = await conn.execute(
+            "SELECT account_type FROM user_info WHERE user_id = ?",
+            (user_id,),
+        )
+
+        row = await cursor.fetchone()
+
+        if row is None:
+            logger.warning("Пользователь user_id=%s не найден", user_id)
+            return None
+
+        return row[0]

@@ -15,6 +15,7 @@ async def init_db():
                 user_id INTEGER PRIMARY KEY,
                 is_sub BOOLEAN DEFAULT FALSE,
                 balance INTEGER NOT NULL DEFAULT 0,
+                account_type TEXT NOT NULL CHECK (account_type IN ('user', 'admin')),
                 registered_at TEXT DEFAULT CURRENT_DATE
             )
         """)

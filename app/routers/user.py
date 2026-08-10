@@ -37,7 +37,7 @@ from app.database.queries.stock_queries import (
     get_manual_quantity_stock,
     set_order_id,
 )
-from app.database.queries.user_queries import get_registered_at
+from app.database.queries.user_queries import get_registered_at, new_registration
 from app.filters.common import IsSubscribed
 from app.keyboards import inline as kb
 from app.payments.crypto_bot import cp, create_crypto_bot_invoice
@@ -67,11 +67,12 @@ async def sync_subscription_status(bot: Bot, user_id: int) -> bool:
 @user.message(CommandStart())
 async def cmd_start(message: Message):
     user_id = message.from_user.id
+    await new_registration(user_id)
 
     subscribed = await sync_subscription_status(message.bot, user_id)
 
     if subscribed:
-        await show_main_menu(message)
+        await show_main_menu(message, user_id)
     else:
         await message.answer_photo(
             "Перед началом подпишитесь на наш канал:",
@@ -503,7 +504,7 @@ async def back_to_main(callback: CallbackQuery):
     subscribed = await sync_subscription_status(callback.bot, user_id)
 
     if subscribed:
-        await edit_main_menu(callback.message)
+        await edit_main_menu(callback.message, user_id)
     else:
         await callback.message.answer(
             "Перед началом подпишитесь на наш канал:",
