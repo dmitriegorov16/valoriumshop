@@ -1,6 +1,11 @@
+import logging
+
 import aiosqlite
 
 DB_PATH = "data.sqlite"
+
+
+logger = logging.getLogger(__name__)
 
 
 async def init_db():
@@ -23,7 +28,6 @@ async def init_db():
             )
         """)
 
-        # 1. Таблица товаров
         await conn.execute("""CREATE TABLE IF NOT EXISTS products (
                 product_id INTEGER PRIMARY KEY,
                 category_id INTEGER NOT NULL,
@@ -37,7 +41,6 @@ async def init_db():
             )
         """)
 
-        # 2. Таблица заказов
         await conn.execute("""CREATE TABLE IF NOT EXISTS orders (
                 order_id INTEGER PRIMARY KEY,
                 user_id INTEGER NOT NULL,          
@@ -80,3 +83,4 @@ async def init_db():
         """)
 
         await conn.commit()
+        logger.info("Все таблицы инициализированы")

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 
 from aiogram import Bot, Dispatcher
@@ -9,11 +10,28 @@ from app.payments.crypto_bot import cp
 from app.routers.register import register
 from app.routers.user import user
 
+# _levelToName = {
+#     CRITICAL: 'CRITICAL',
+#     ERROR: 'ERROR',
+#     WARNING: 'WARNING',
+#     INFO: 'INFO',
+#     DEBUG: 'DEBUG',
+#     NOTSET: 'NOTSET',
+# }
 
-# TODO: добавить логи
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+logger = logging.getLogger(__name__)
+
+
 async def main():
     bot = Bot(token=os.getenv("TELEGRAM_TOKEN"))
     dp = Dispatcher()
+    logger.info("Диспетчер инициализирован")
     dp.startup.register(startup)
     dp.shutdown.register(shutdown)
     dp.include_routers(user, register)
@@ -35,7 +53,7 @@ async def startup(dispatcher: Dispatcher):
 
 
 async def shutdown(dispatcher: Dispatcher):
-    pass
+    logger.info("Бот выключен")
 
 
 if __name__ == "__main__":
