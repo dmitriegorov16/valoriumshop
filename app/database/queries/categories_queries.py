@@ -1,7 +1,11 @@
+import logging
+
 import aiosqlite
 
 from app.database.init import DB_PATH
 from app.types.categories import Category
+
+logger = logging.getLogger(__name__)
 
 
 async def get_categories() -> list[Category]:
@@ -51,6 +55,9 @@ async def get_category_name(category_id):
             (category_id,),
         )
         row = await cursor.fetchone()
+        if row is None:
+            logger.warning("Категория с id=%s не найдена", category_id)
+            return None
         return row[0]
 
 
@@ -61,6 +68,9 @@ async def get_category_parent_id(category_id):
             (category_id,),
         )
         row = await cursor.fetchone()
+        if row is None:
+            logger.warning("Категория с id=%s не найдена", category_id)
+            return None
         return row[0]
 
 
@@ -72,4 +82,7 @@ async def get_category_photo(category_id):
         )
 
         row = await cursor.fetchone()
+        if row is None:
+            logger.info("Фото категории с id=%s не найдена", category_id)
+            return None
         return row[0]

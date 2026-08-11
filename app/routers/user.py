@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart
@@ -5,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message, PreCheckoutQuery
 from aiosend.types import Invoice
 
-from app.database.queries.balance_queries import get_balance, top_up_balance
+from app.database.queries.balance_queries import deduct_balance, get_balance, top_up_balance
 from app.database.queries.categories_queries import (
     get_categories,
     get_category_name,
@@ -29,8 +31,13 @@ from app.database.queries.products_queries import (
     get_products,
     set_out_of_stock,
 )
-from app.database.queries.stock_queries import get_auto_quantity_stock, get_manual_quantity_stock
-from app.database.queries.user_queries import get_registered_at
+from app.database.queries.stock_queries import (
+    get_auto_quantity_stock,
+    get_digital_stock_content,
+    get_manual_quantity_stock,
+    set_order_id,
+)
+from app.database.queries.user_queries import get_registered_at, new_registration
 from app.filters.common import IsSubscribed
 from app.keyboards import inline as kb
 from app.payments.crypto_bot import cp, create_crypto_bot_invoice
@@ -41,21 +48,32 @@ from app.utils.menu import edit_main_menu, show_main_menu
 from app.utils.menu_builder import menu_builder
 from app.utils.product_builder import product_builder, products_builder
 
+logger = logging.getLogger(__name__)
+
 user = Router()
 user.message.filter(IsSubscribed())
 user.callback_query.filter(IsSubscribed())
 
 
+async def sync_subscription_status(bot: Bot, user_id: int) -> bool:
+    subscribed = await is_subscribed(bot, user_id)
+    if subscribed:
+        await mark_user_subscribed(user_id)
+    else:
+        await mark_user_unsubscribed(user_id)
+    return subscribed
+
+
 @user.message(CommandStart())
 async def cmd_start(message: Message):
     user_id = message.from_user.id
+    await new_registration(user_id)
 
-    subscribed = await is_subscribed(message.bot, user_id)
+    subscribed = await sync_subscription_status(message.bot, user_id)
 
     if subscribed:
-        await show_main_menu(message)
+        await show_main_menu(message, user_id)
     else:
-        await mark_user_unsubscribed(user_id)
         await message.answer_photo(
             "Перед началом подпишитесь на наш канал:",
             reply_markup=kb.check_subscription_keyboard,
@@ -142,7 +160,7 @@ async def process_amount(message: Message, state: FSMContext, bot: Bot):
         await message.delete()
         return
 
-    amount = message.text
+    # amount уже int, повторное присваивание message.text убрано — это и был баг
     user_id = message.from_user.id
     payment_id = await create_payment(user_id, amount)
     await state.update_data(payment_id=payment_id)
@@ -202,11 +220,22 @@ async def handle_payment(invoice: Invoice, message: Message):
     charge_id = invoice.invoice_id
     user_id = message.from_user.id
 
-    await mark_payment_paid(payment_id, charge_id)
+    if not await mark_payment_paid(payment_id, charge_id):
+        # платёж уже был обработан ранее (повторный вебхук) либо payment_id некорректен —
+        # баланс НЕ трогаем, чтобы не начислить его дважды
+        logger.warning("Повторная или некорректная обработка оплаты payment_id=%s", payment_id)
+        return
 
-    await message.answer("Оплата прошла успешно! ✅")
     amount = await get_amount(payment_id)
     await top_up_balance(user_id, amount)
+    logger.info(
+        "Зачислена оплата CryptoBot: payment_id=%s, user_id=%s, amount=%s руб, invoice_id=%s",
+        payment_id,
+        user_id,
+        amount,
+        charge_id,
+    )
+    await message.answer("Оплата прошла успешно! ✅")
 
 
 @user.callback_query(F.data == "stars_selection")
@@ -237,6 +266,12 @@ async def process_pre_checkout(pre_checkout_query: PreCheckoutQuery):
     payment = await get_payment(payment_id)
 
     if payment is None or payment["status"] == "paid":
+        logger.warning(
+            "Отклонён pre_checkout: payment_id=%s, user_id=%s, status=%s",
+            payment_id,
+            pre_checkout_query.from_user.id,
+            payment["status"] if payment else "not_found",
+        )
         await pre_checkout_query.answer(
             ok=False,
             error_message="Платёж недоступен, попробуйте создать новый.",
@@ -251,11 +286,21 @@ async def process_successful_payment(message: Message, bot: Bot):
     payment_id = message.successful_payment.invoice_payload
     telegram_charge_id = message.successful_payment.telegram_payment_charge_id
     user_id = message.from_user.id
-    await mark_payment_paid(payment_id, telegram_charge_id)
 
-    await message.answer("Оплата прошла успешно! ✅")
+    if not await mark_payment_paid(payment_id, telegram_charge_id):
+        logger.warning("Повторная или некорректная обработка оплаты payment_id=%s", payment_id)
+        return
+
     amount = await get_amount(payment_id)
     await top_up_balance(user_id, amount)
+    logger.info(
+        "Зачислена оплата Stars: payment_id=%s, user_id=%s, amount=%s руб, charge_id=%s",
+        payment_id,
+        user_id,
+        amount,
+        telegram_charge_id,
+    )
+    await message.answer("Оплата прошла успешно! ✅")
 
 
 @user.callback_query(F.data.startswith("category_"))
@@ -266,6 +311,11 @@ async def open_category(callback: CallbackQuery):
     parent_id = await get_category_parent_id(category_id)
     back_callback = f"category_{parent_id}" if parent_id is not None else "back_main"
     category_photo = await get_category_photo(category_id)
+
+    if category_name is None or category_photo is None:
+        await callback.answer("Категория недоступна", show_alert=True)
+        return
+
     photo = FSInputFile(f"images/categories/{category_photo}.png")
 
     if categories:
@@ -287,8 +337,18 @@ async def open_category(callback: CallbackQuery):
 async def open_product(callback: CallbackQuery):
     product_id = int(callback.data.split("_")[1])
     product = await get_product(product_id)
+
+    if product is None:
+        await callback.answer("Товар недоступен", show_alert=True)
+        return
+
     back_callback = f"category_{product['category_id']}"
     product_photo = await get_product_photo(product_id)
+
+    if product_photo is None:
+        await callback.answer("Товар недоступен", show_alert=True)
+        return
+
     photo = FSInputFile(f"images/products/{product_photo}.png")
     await callback.message.edit_media(
         media=InputMediaPhoto(
@@ -303,50 +363,149 @@ async def open_product(callback: CallbackQuery):
 async def process_buy(callback: CallbackQuery):
     product_id = int(callback.data.split("_")[1])
     product = await get_product(product_id)
+
+    if product is None:
+        await callback.answer("Товар недоступен", show_alert=True)
+        return
+
     product_price = int(product["price"])
-    user_id = callback.message.from_user.id
+    user_id = callback.from_user.id
     user_balance = int(await get_balance(user_id))
 
     if user_balance < product_price:
+        logger.warning(
+            "Недостаточно средств: user_id=%s, product_id=%s, balance=%s, price=%s",
+            user_id,
+            product_id,
+            user_balance,
+            product_price,
+        )
         await callback.message.edit_caption(
             caption=f"Нехватает {abs(user_balance - product_price)} руб",
             reply_markup=kb.not_money,
         )
-    else:
-        delivery_type = await get_delivery_type(product_id)
-        if delivery_type == "auto":
-            quantity_stock = await get_auto_quantity_stock(product_id)
-            if quantity_stock < 1:
-                await callback.message.edit_caption(
-                    caption="К сожалению товара нету в наличии",
-                    reply_markup=kb.back_main_menu,
-                )
-                await set_out_of_stock(product_id)
-            else:
-                order_id = await create_order(user_id, product_id, delivery_type, product_price)
+        return
 
-        elif delivery_type == "manual":
-            quantity_stock = await get_manual_quantity_stock(product_id)
-            if quantity_stock < 1:
-                await callback.message.edit_caption(
-                    caption="К сожалению товара нету в наличии",
-                    reply_markup=kb.back_main_menu,
-                )
-                await set_out_of_stock(product_id)
-            else:
-                order_id = await create_order(user_id, product_id, delivery_type, product_price)
+    delivery_type = await get_delivery_type(product_id)
+
+    if delivery_type == "auto":
+        quantity_stock = await get_auto_quantity_stock(product_id)
+        if quantity_stock < 1:
+            await callback.message.edit_caption(
+                caption="К сожалению товара нету в наличии",
+                reply_markup=kb.back_main_menu,
+            )
+            await set_out_of_stock(product_id)
+            return
+
+        # сначала атомарно списываем баланс, и только потом выдаём товар —
+        # иначе при гонке товар может уйти бесплатно
+        if not await deduct_balance(user_id, product_price):
+            logger.warning(
+                "Гонка при списании баланса: проверка прошла, списание не удалось — "
+                "user_id=%s, product_id=%s, price=%s",
+                user_id,
+                product_id,
+                product_price,
+            )
+            await callback.message.edit_caption(
+                caption="Недостаточно средств",
+                reply_markup=kb.not_money,
+            )
+            return
+
+        order_id = await create_order(user_id, product_id, delivery_type, product_price)
+        stock = await get_digital_stock_content(product_id)
+
+        if stock is None:
+            logger.error(
+                "Товар не выдан после списания средств, выполняется возврат: "
+                "user_id=%s, product_id=%s, order_id=%s, amount=%s руб",
+                user_id,
+                product_id,
+                order_id,
+                product_price,
+            )
+            # баланс уже списан, а товар кончился между проверкой и выдачей —
+            # возвращаем деньги, чтобы не оставить пользователя без товара и без денег
+            await top_up_balance(user_id, product_price)
+            await callback.message.edit_caption(
+                caption="К сожалению товара нету в наличии",
+                reply_markup=kb.back_main_menu,
+            )
+            await set_out_of_stock(product_id)
+            return
+
+        await set_order_id(stock["id"], order_id)
+
+        try:
+            await callback.message.answer(stock["content"])
+        except Exception:
+            # деньги уже списаны, а содержимое товара не доставлено пользователю
+            logger.exception(
+                "Не удалось отправить содержимое товара после списания средств: "
+                "user_id=%s, product_id=%s, order_id=%s, stock_id=%s, amount=%s руб",
+                user_id,
+                product_id,
+                order_id,
+                stock["id"],
+                product_price,
+            )
+            raise
+
+        logger.info(
+            "Цифровой товар выдан: user_id=%s, product_id=%s, order_id=%s, stock_id=%s, amount=%s руб",
+            user_id,
+            product_id,
+            order_id,
+            stock["id"],
+            product_price,
+        )
+
+    elif delivery_type == "manual":
+        quantity_stock = await get_manual_quantity_stock(product_id)
+        if quantity_stock < 1:
+            await callback.message.edit_caption(
+                caption="К сожалению товара нету в наличии",
+                reply_markup=kb.back_main_menu,
+            )
+            await set_out_of_stock(product_id)
+            return
+
+        if not await deduct_balance(user_id, product_price):
+            logger.warning(
+                "Гонка при списании баланса: проверка прошла, списание не удалось — "
+                "user_id=%s, product_id=%s, price=%s",
+                user_id,
+                product_id,
+                product_price,
+            )
+            await callback.message.edit_caption(
+                caption="Недостаточно средств",
+                reply_markup=kb.not_money,
+            )
+            return
+
+        order_id = await create_order(user_id, product_id, delivery_type, product_price)
+        logger.info(
+            "Создан заказ на ручную выдачу: user_id=%s, product_id=%s, order_id=%s, amount=%s руб",
+            user_id,
+            product_id,
+            order_id,
+            product_price,
+        )
+        # дописать manual выдачу
 
 
 @user.callback_query(F.data == "back_main")
 async def back_to_main(callback: CallbackQuery):
     user_id = callback.from_user.id
 
-    subscribed = await is_subscribed(callback.bot, user_id)
+    subscribed = await sync_subscription_status(callback.bot, user_id)
 
     if subscribed:
-        await edit_main_menu(callback.message)
+        await edit_main_menu(callback.message, user_id)
     else:
-        await mark_user_unsubscribed(user_id)
         await callback.message.answer(
             "Перед началом подпишитесь на наш канал:",
             reply_markup=kb.check_subscription_keyboard,

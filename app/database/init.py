@@ -1,6 +1,10 @@
+import logging
+
 import aiosqlite
 
 DB_PATH = "data.sqlite"
+
+logger = logging.getLogger(__name__)
 
 
 async def init_db():
@@ -10,6 +14,7 @@ async def init_db():
                 user_id INTEGER PRIMARY KEY,
                 is_sub BOOLEAN DEFAULT FALSE,
                 balance INTEGER NOT NULL DEFAULT 0,
+                account_type TEXT NOT NULL DEFAULT 'user' CHECK (account_type IN ('user', 'admin')),
                 registered_at TEXT DEFAULT CURRENT_DATE
             )
         """)
@@ -23,7 +28,6 @@ async def init_db():
             )
         """)
 
-        # 1. Таблица товаров
         await conn.execute("""CREATE TABLE IF NOT EXISTS products (
                 product_id INTEGER PRIMARY KEY,
                 category_id INTEGER NOT NULL,
@@ -32,12 +36,11 @@ async def init_db():
                 price INTEGER NOT NULL,
                 image TEXT DEFAULT NULL,
                 delivery_type TEXT NOT NULL CHECK (delivery_type IN ('auto', 'manual')), 
-                in_stock BOOLEAN DEFAULT FALSE,
+                in_stock INTEGER NOT NULL DEFAULT 0 CHECK (in_stock IN (0, 1)),
                 FOREIGN KEY (category_id) REFERENCES categories(category_id) 
             )
         """)
 
-        # 2. Таблица заказов
         await conn.execute("""CREATE TABLE IF NOT EXISTS orders (
                 order_id INTEGER PRIMARY KEY,
                 user_id INTEGER NOT NULL,          
@@ -80,3 +83,4 @@ async def init_db():
         """)
 
         await conn.commit()
+        logger.info("Все таблицы инициализированы")
