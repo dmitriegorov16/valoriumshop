@@ -10,4 +10,5 @@ dependencies = [
     "aiosqlite>=0.22.1",
     "asyncio>=4.0.0",
     "dotenv>=0.9.9",
+    "sqlalchemy>=2.0.52",
 ]
