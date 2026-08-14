@@ -1,6 +1,6 @@
 from typing import TypedDict
 
 
-class Category(TypedDict):
+class CategoryType(TypedDict):
     id: int
     name: str
