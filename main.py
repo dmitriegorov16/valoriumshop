@@ -5,7 +5,7 @@ import os
 from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 
-from app.database.init import init_db
+from app.database.engine import init_db
 from app.payments.crypto_bot import cp
 from app.routers.register import register
 from app.routers.user import user

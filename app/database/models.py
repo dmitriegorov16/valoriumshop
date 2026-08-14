@@ -10,7 +10,12 @@ class Base(DeclarativeBase):
     pass
 
 
-class Users(Base):
+# TODO: Добавить каскадное удаление (например если аккаунт удален то все транзакции удалены)
+# TODO: Вынести таблицу
+# TODO: перенести amount с int на Decimal
+
+
+class User(Base):
     __tablename__ = "user_info"
 
     user_id: Mapped[int] = mapped_column(primary_key=True)
@@ -20,7 +25,7 @@ class Users(Base):
     registered_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
 
 
-class Categories(Base):
+class Category(Base):
     __tablename__ = "categories"
 
     category_id: Mapped[int] = mapped_column(primary_key=True)
@@ -29,7 +34,7 @@ class Categories(Base):
     image: Mapped[str | None] = mapped_column(Text, default=None)
 
 
-class Products(Base):
+class Product(Base):
     __tablename__ = "products"
 
     product_id: Mapped[int] = mapped_column(primary_key=True)
@@ -42,7 +47,7 @@ class Products(Base):
     in_stock: Mapped[bool] = mapped_column(default=False)
 
 
-class Orders(Base):
+class Order(Base):
     __tablename__ = "orders"
 
     order_id: Mapped[int] = mapped_column(primary_key=True)
@@ -60,17 +65,20 @@ class DigitalStock(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.product_id"))
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.order_id"))
     content: Mapped[str] = mapped_column()
-    is_solid = Mapped[bool] = mapped_column(default=False)
+    is_solid: Mapped[bool] = mapped_column(default=False)
 
 
 class ManualStock(Base):
     __tablename__ = "manual_stock"
 
+    id: Mapped[int] = mapped_column(primary_key=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.product_id"))
     stock_quantity: Mapped[int] = mapped_column(default=0)
 
 
-class Payments(Base):
+class Payment(Base):
+    __tablename__ = "payments"
+
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user_info.user_id"))
     amount: Mapped[float] = mapped_column()
