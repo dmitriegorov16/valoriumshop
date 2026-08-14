@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 
-class Product(TypedDict):
+class ProductType(TypedDict):
     id: int
     category_id: int
     name: str
