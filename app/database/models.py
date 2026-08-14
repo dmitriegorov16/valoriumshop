@@ -65,7 +65,7 @@ class DigitalStock(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.product_id"))
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.order_id"))
     content: Mapped[str] = mapped_column()
-    is_solid: Mapped[bool] = mapped_column(default=False)
+    is_sold: Mapped[bool] = mapped_column(default=False)
 
 
 class ManualStock(Base):
