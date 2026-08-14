@@ -1,7 +1,6 @@
 import logging
 
 import aiosqlite
-
 from app.database.init import DB_PATH
 
 logger = logging.getLogger(__name__)

@@ -7,8 +7,7 @@ DB_PATH = "data.sqlite"
 engine = create_async_engine(f"sqlite+aiosqlite:///{DB_PATH}")
 
 async_session = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
+    bind=engine,
     expire_on_commit=False,
 )
 
