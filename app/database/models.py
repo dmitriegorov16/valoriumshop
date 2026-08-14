@@ -55,7 +55,7 @@ class Order(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.product_id"))
     delivery_type: Mapped[DeliveryType] = mapped_column(Enum(DeliveryType))
     price: Mapped[int] = mapped_column()
-    status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus))
+    status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.PENDING)
 
 
 class DigitalStock(Base):
