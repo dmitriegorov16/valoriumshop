@@ -3,7 +3,7 @@ import os
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dotenv import load_dotenv
 
-from app.database.queries.user_queries import get_account_type
+from app.database.queries.olds.user_queries import get_account_type
 
 load_dotenv()
 CHANNEL_NAME = os.getenv("CHANNEL_NAME")

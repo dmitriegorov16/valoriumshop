@@ -7,37 +7,37 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message, PreCheckoutQuery
 from aiosend.types import Invoice
 
-from app.database.queries.balance_queries import deduct_balance, get_balance, top_up_balance
-from app.database.queries.categories_queries import (
+from app.database.queries.olds.balance_queries import deduct_balance, get_balance, top_up_balance
+from app.database.queries.olds.categories_queries import (
     get_categories,
     get_category_name,
     get_category_parent_id,
     get_category_photo,
     get_subcategories,
 )
-from app.database.queries.filters_queries import mark_user_subscribed, mark_user_unsubscribed
-from app.database.queries.orders_queries import create_order
-from app.database.queries.payments_queries import (
+from app.database.queries.olds.filters_queries import mark_user_subscribed, mark_user_unsubscribed
+from app.database.queries.olds.orders_queries import create_order
+from app.database.queries.olds.payments_queries import (
     create_payment,
     get_amount,
     get_payment,
     mark_payment_paid,
     update_payment_method,
 )
-from app.database.queries.products_queries import (
+from app.database.queries.olds.products_queries import (
     get_delivery_type,
     get_product,
     get_product_photo,
     get_products,
     set_out_of_stock,
 )
-from app.database.queries.stock_queries import (
+from app.database.queries.olds.stock_queries import (
     get_auto_quantity_stock,
     get_digital_stock_content,
     get_manual_quantity_stock,
     set_order_id,
 )
-from app.database.queries.user_queries import get_registered_at, new_registration
+from app.database.queries.olds.user_queries import get_registered_at, new_registration
 from app.filters.common import IsSubscribed
 from app.keyboards import inline as kb
 from app.payments.crypto_bot import cp, create_crypto_bot_invoice
