@@ -71,8 +71,7 @@ class DigitalStock(Base):
 class ManualStock(Base):
     __tablename__ = "manual_stock"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("products.product_id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.product_id"), primary_key=True)
     stock_quantity: Mapped[int] = mapped_column(default=0)
 
 
