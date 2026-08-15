@@ -37,7 +37,7 @@ from app.database.queries.olds.stock_queries import (
     get_manual_quantity_stock,
     set_order_id,
 )
-from app.database.queries.olds.user_queries import get_registered_at, new_registration
+from app.database.queries.user import get_registered_at, new_registration
 from app.filters.common import IsSubscribed
 from app.keyboards import inline as kb
 from app.payments.crypto_bot import cp, create_crypto_bot_invoice

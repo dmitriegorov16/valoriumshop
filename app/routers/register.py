@@ -3,7 +3,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, Message
 
 from app.database.queries.olds.filters_queries import mark_user_subscribed, mark_user_unsubscribed
-from app.database.queries.olds.user_queries import new_registration
+from app.database.queries.user import new_registration
 from app.filters.common import IsNotSubscribed, IsSubscribed
 from app.keyboards import inline as kb
 from app.utils.is_sub import is_subscribed
