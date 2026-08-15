@@ -78,7 +78,7 @@ class ManualStock(Base):
 class Payment(Base):
     __tablename__ = "payments"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    payment_id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user_info.user_id"))
     amount: Mapped[float] = mapped_column()
     method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod))

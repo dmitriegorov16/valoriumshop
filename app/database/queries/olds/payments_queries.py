@@ -1,8 +1,8 @@
 import logging
 
 import aiosqlite
-
 from app.database.init import DB_PATH
+
 from app.types.payment import Payment
 
 logger = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ async def mark_payment_paid(payment_id: int, external_id: str):
             return False
 
 
-async def get_amount(payment_id: str):
+async def get_amount(payment_id: int):
     async with aiosqlite.connect(DB_PATH) as conn:
         cursor = await conn.execute(
             "SELECT amount FROM payments WHERE id = ?",

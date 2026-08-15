@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 
-class Payment(TypedDict):
+class PaymentType(TypedDict):
     id: int
     user_id: int
     amount: float
