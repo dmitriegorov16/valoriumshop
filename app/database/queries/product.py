@@ -58,7 +58,10 @@ async def get_delivery_type(product_id: int) -> DeliveryType:
         result = await session.execute(select(Product.delivery_type).where(Product.product_id == product_id))
 
         delivery_type = result.scalar_one_or_none()
-        return delivery_type
+
+        return DeliveryType(
+            delivery_type,
+        )
 
 
 async def set_out_of_stock(product_id: int) -> bool:

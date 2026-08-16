@@ -30,6 +30,7 @@ async def get_payment(payment_id: int) -> PaymentType | None:
             amount=payment.amount,
             method=payment.method,
             status=payment.status,
+            created_at=payment.created_at,
             external_id=payment.external_id,
         )
 
@@ -56,7 +57,6 @@ async def mark_payment_paid(payment_id: int, external_id: str) -> bool:
             select(Payment).where(Payment.payment_id == payment_id),
         )
         payment = result.scalar_one_or_none()
-
         if not payment:
             return False
 
@@ -66,7 +66,7 @@ async def mark_payment_paid(payment_id: int, external_id: str) -> bool:
         return True
 
 
-async def get_amount(payment_id: int) -> int:
+async def get_amount(payment_id: int) -> float:
     async with async_session() as session:
         result = await session.execute(
             select(Payment.amount).where(Payment.payment_id == payment_id),

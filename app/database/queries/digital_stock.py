@@ -18,12 +18,10 @@ async def get_auto_quantity_stock(product_id: int) -> int:
         return result.scalar_one()
 
 
-async def get_digital_stock_content(product_id) -> dict:
+async def get_digital_stock_content(product_id) -> dict | None:
     async with async_session() as session:
         query = (
-            select(DigitalStock.id)
-            .where(DigitalStock.product_id == product_id, DigitalStock.is_sold == False)
-            .limit(1)
+            select(DigitalStock.id).where(DigitalStock.product_id == product_id, DigitalStock.is_sold == False).limit(1)
         )
 
         result = await session.execute(
@@ -34,6 +32,9 @@ async def get_digital_stock_content(product_id) -> dict:
         )
 
         stock = result.scalar_one_or_none()
+        if not stock:
+            return None
+
         await session.commit()
 
         return {

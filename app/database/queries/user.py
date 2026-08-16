@@ -1,4 +1,6 @@
-from sqlalchemy import delete, select, update
+from datetime import datetime
+
+from sqlalchemy import select
 
 from app.database.engine import async_session
 from app.database.models import User
@@ -22,7 +24,7 @@ async def new_registration(user_id: int) -> bool:
             return True
 
 
-async def get_registered_at(user_id: int) -> int | None:
+async def get_registered_at(user_id: int) -> datetime | None:
     async with async_session() as session:
         result = await session.execute(
             select(User.registered_at).where(User.user_id == user_id),
@@ -32,7 +34,7 @@ async def get_registered_at(user_id: int) -> int | None:
         return registered_at
 
 
-async def get_account_type(user_id: int) -> AccountType:
+async def get_account_type(user_id: int) -> AccountType | None:
     async with async_session() as session:
         result = await session.execute(
             select(User.account_type).where(User.user_id == user_id),
