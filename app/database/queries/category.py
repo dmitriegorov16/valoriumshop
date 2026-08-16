@@ -1,4 +1,4 @@
-from sqlalchemy import delete, select, update
+from sqlalchemy import select
 
 from app.database.engine import async_session
 from app.database.models import Category
@@ -15,7 +15,15 @@ async def get_categories() -> list[CategoryType] | None:
         if not categories:
             return None
 
-        return categories
+        return [
+            CategoryType(
+                id=category.category_id,
+                name=category.category_name,
+                parent_id=category.parent_id,
+                photo=category.image,
+            )
+            for category in categories
+        ]
 
 
 async def get_subcategories(parent_id: int) -> list[CategoryType] | None:
@@ -28,7 +36,15 @@ async def get_subcategories(parent_id: int) -> list[CategoryType] | None:
         if not categories:
             return None
 
-        return categories
+        return [
+            CategoryType(
+                id=category.category_id,
+                name=category.category_name,
+                parent_id=category.parent_id,
+                photo=category.image,
+            )
+            for category in categories
+        ]
 
 
 async def get_category_name(category_id: int) -> str | None:
@@ -42,9 +58,7 @@ async def get_category_name(category_id: int) -> str | None:
         if not existing:
             return None
 
-        result = await session.execute(
-            select(Category.category_name).where(Category.category_id == category_id)
-        )
+        result = await session.execute(select(Category.category_name).where(Category.category_id == category_id))
 
         category_name = result.scalar_one()
         return category_name
