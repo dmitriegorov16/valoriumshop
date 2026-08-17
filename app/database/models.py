@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from sqlalchemy import Enum, ForeignKey, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.enums import *
+from app.enums import AccountType, DeliveryType, OrderStatus, PaymentMethod, PaymentStatus
 
 
 class Base(DeclarativeBase):
