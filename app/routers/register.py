@@ -1,10 +1,10 @@
 from aiogram import F, Router
 from aiogram.filters import CommandStart
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InaccessibleMessage, Message
 
 from app.database.queries.olds.filters_queries import mark_user_subscribed, mark_user_unsubscribed
 from app.database.queries.user import new_registration
-from app.filters.common import IsNotSubscribed, IsSubscribed
+from app.filters.common import IsNotSubscribed
 from app.keyboards import inline as kb
 from app.utils.is_sub import is_subscribed
 from app.utils.menu import show_main_menu
@@ -16,11 +16,22 @@ register.callback_query.filter(IsNotSubscribed())
 
 @register.message(CommandStart())
 async def cmd_start(message: Message):
-    user_id = message.from_user.id
+    from_user = message.from_user
+    if from_user is None:
+        # TODO: вывести ошибку через logger
+        return
+
+    user_id = from_user.id
 
     await new_registration(user_id)
 
-    subscribed = await is_subscribed(message.bot, user_id)
+    bot = message.bot
+
+    if bot is None:
+        # TODO: вывести ошибку через logger
+        return
+
+    subscribed = await is_subscribed(bot, user_id)
 
     if subscribed:
         await mark_user_subscribed(user_id)
@@ -35,12 +46,27 @@ async def cmd_start(message: Message):
 
 @register.callback_query(F.data == "check_subscription")
 async def callback_check(callback: CallbackQuery):
-    subscribed = await is_subscribed(callback.bot, callback.from_user.id)
+    bot = callback.bot
 
-    if subscribed:
-        await mark_user_subscribed(callback.from_user.id)
-        await callback.message.answer("✅ Вы подписаны")
-    else:
-        await callback.message.answer("❌ Вы не подписаны")
+    if bot is None:
+        # TODO: вывести ошибку через logger
+        return
 
-    await callback.answer()
+    subscribed = await is_subscribed(bot, callback.from_user.id)
+
+    if isinstance(callback.message, Message):
+        if subscribed:
+            await callback.answer()
+            await mark_user_subscribed(callback.from_user.id)
+            await callback.message.answer("✅ Вы подписаны")
+        else:
+            await callback.answer()
+            await callback.message.answer("❌ Вы не подписаны")
+
+    elif isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    elif callback.message is None:
+        # TODO: вывести ошибку через logger
+        return
