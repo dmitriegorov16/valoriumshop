@@ -19,6 +19,7 @@ class OrderStatus(enum.Enum):
 class PaymentMethod(enum.Enum):
     CRYPTO_BOT = "crypto_bot"
     STARS = "stars"
+    SBP = "sbp"
 
 
 class PaymentStatus(enum.Enum):

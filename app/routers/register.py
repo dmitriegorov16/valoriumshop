@@ -47,7 +47,6 @@ async def cmd_start(message: Message):
 @register.callback_query(F.data == "check_subscription")
 async def callback_check(callback: CallbackQuery):
     bot = callback.bot
-
     if bot is None:
         # TODO: вывести ошибку через logger
         return
@@ -67,6 +66,6 @@ async def callback_check(callback: CallbackQuery):
         # TODO: вывести ошибку про InaccessibleMessage через logger
         return
 
-    elif callback.message is None:
+    else:
         # TODO: вывести ошибку через logger
         return
