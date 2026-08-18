@@ -23,8 +23,9 @@ async def top_up_balance(user_id: int, amount: int) -> bool:
         if not user:
             return False
 
-        user.balance = amount
+        user.balance += amount
         await session.commit()
+        return True
 
 
 async def deduct_balance(user_id: int, amount: int) -> bool:
@@ -32,11 +33,8 @@ async def deduct_balance(user_id: int, amount: int) -> bool:
         return False
 
     async with async_session() as session:
-        stmt = (
-            update(User)
-            .where(User.user_id == user_id, User.balance >= amount)
-            .values(balance=User.balance - amount)
-        )
+        stmt = update(User).where(User.user_id == user_id, User.balance >= amount).values(balance=User.balance - amount)
         result = await session.execute(stmt)
         await session.commit()
-        return result.rowcount > 0
+
+        return result.rowcount > 0  # ty: ignore[unresolved-attribute]

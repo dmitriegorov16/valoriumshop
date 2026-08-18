@@ -56,7 +56,16 @@ async def mark_payment_paid(payment_id: int, external_id: str) -> bool:
         result = await session.execute(
             select(Payment).where(Payment.payment_id == payment_id),
         )
+
         payment = result.scalar_one_or_none()
+
+        if not payment:
+            return False
+
+        if payment.status == PaymentStatus.PAID:
+            # TODO: Добавить логирование
+            return False
+
         if not payment:
             return False
 
