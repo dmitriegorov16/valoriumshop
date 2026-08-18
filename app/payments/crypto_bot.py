@@ -6,7 +6,11 @@ from aiosend import TESTNET, CryptoPay
 from dotenv import load_dotenv
 
 load_dotenv()
-cp = CryptoPay(os.getenv("CRYPTO_PAY_TOKEN"), TESTNET)
+token = os.getenv("CRYPTO_PAY_TOKEN")
+if not token:
+    raise
+
+cp = CryptoPay(token, TESTNET)
 
 logger = logging.getLogger(__name__)
 

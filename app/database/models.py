@@ -1,3 +1,4 @@
+import enum
 from datetime import UTC, datetime
 
 from sqlalchemy import Enum, ForeignKey, Text
@@ -8,6 +9,10 @@ from app.enums import AccountType, DeliveryType, OrderStatus, PaymentMethod, Pay
 
 class Base(DeclarativeBase):
     pass
+
+
+def str_enum(enum_cls: type[enum.Enum]) -> Enum:
+    return Enum(enum_cls, values_callable=lambda x: [e.value for e in x])
 
 
 # TODO: Добавить каскадное удаление (например если аккаунт удален то все транзакции удалены)
@@ -21,7 +26,7 @@ class User(Base):
     user_id: Mapped[int] = mapped_column(primary_key=True)
     is_sub: Mapped[bool] = mapped_column(default=False)
     balance: Mapped[int] = mapped_column(default=0)
-    account_type: Mapped[AccountType] = mapped_column(Enum(AccountType), default=AccountType.USER)
+    account_type: Mapped[AccountType] = mapped_column(str_enum(AccountType), default=AccountType.USER)
     registered_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
 
 
@@ -43,7 +48,7 @@ class Product(Base):
     description: Mapped[str] = mapped_column()
     price: Mapped[int] = mapped_column()
     image: Mapped[str] = mapped_column()
-    delivery_type: Mapped[DeliveryType] = mapped_column(Enum(DeliveryType))
+    delivery_type: Mapped[DeliveryType] = mapped_column(str_enum(DeliveryType))
     in_stock: Mapped[bool] = mapped_column(default=False)
 
 
@@ -53,9 +58,9 @@ class Order(Base):
     order_id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user_info.user_id"))
     product_id: Mapped[int] = mapped_column(ForeignKey("products.product_id"))
-    delivery_type: Mapped[DeliveryType] = mapped_column(Enum(DeliveryType))
+    delivery_type: Mapped[DeliveryType] = mapped_column(str_enum(DeliveryType))
     price: Mapped[int] = mapped_column()
-    status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    status: Mapped[OrderStatus] = mapped_column(str_enum(OrderStatus), default=OrderStatus.PENDING)
 
 
 class DigitalStock(Base):
@@ -81,7 +86,7 @@ class Payment(Base):
     payment_id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user_info.user_id"))
     amount: Mapped[float] = mapped_column()
-    method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod))
-    status: Mapped[PaymentStatus] = mapped_column(Enum(PaymentStatus), default=PaymentStatus.DRAFT)
-    external_id: Mapped[str] = mapped_column()
+    method: Mapped[PaymentMethod | None] = mapped_column(str_enum(PaymentMethod), default=None)
+    status: Mapped[PaymentStatus] = mapped_column(str_enum(PaymentStatus), default=PaymentStatus.DRAFT)
+    external_id: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))

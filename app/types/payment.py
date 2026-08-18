@@ -8,7 +8,7 @@ class PaymentType(TypedDict):
     id: int
     user_id: int
     amount: float
-    method: PaymentMethod
+    method: PaymentMethod | None
     status: PaymentStatus
     external_id: str | None
     created_at: datetime

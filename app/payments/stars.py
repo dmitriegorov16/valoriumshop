@@ -7,7 +7,11 @@ from aiogram.types import LabeledPrice
 from dotenv import load_dotenv
 
 load_dotenv()
-EXCHANGE_RATE = float(os.getenv("STARS_EXCHANGE_RATE"))
+exchange_rate = os.getenv("STARS_EXCHANGE_RATE")
+if exchange_rate is None:
+    raise
+
+EXCHANGE_RATE = float(exchange_rate)
 
 logger = logging.getLogger(__name__)
 

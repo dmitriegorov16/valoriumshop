@@ -7,11 +7,13 @@ from aiogram.exceptions import TelegramBadRequest
 
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
+
 logger = logging.getLogger(__name__)
 
 
 async def is_subscribed(bot: Bot, user_id):
     try:
+        assert CHANNEL_ID is not None
         member = await bot.get_chat_member(
             chat_id=CHANNEL_ID,
             user_id=user_id,

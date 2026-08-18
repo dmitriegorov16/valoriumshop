@@ -3,7 +3,7 @@ import os
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dotenv import load_dotenv
 
-from app.database.queries.olds.user_queries import get_account_type
+from app.database.queries.user import get_account_type
 from app.enums import AccountType
 
 load_dotenv()
@@ -29,7 +29,7 @@ check_subscription_keyboard = InlineKeyboardMarkup(
 # )
 
 
-async def main_menu_keyboard(user_id):
+async def main_menu_keyboard(user_id: int):
     account_type = await get_account_type(user_id)
 
     if account_type == AccountType.ADMIN:

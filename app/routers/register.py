@@ -2,7 +2,7 @@ from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, InaccessibleMessage, Message
 
-from app.database.queries.olds.filters_queries import mark_user_subscribed, mark_user_unsubscribed
+from app.database.queries.filters import mark_user_subscribed, mark_user_unsubscribed
 from app.database.queries.user import new_registration
 from app.filters.common import IsNotSubscribed
 from app.keyboards import inline as kb
