@@ -1,43 +1,41 @@
 import logging
+from operator import call
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message, PreCheckoutQuery
+from aiogram.types import CallbackQuery, FSInputFile, InaccessibleMessage, InputMediaPhoto, Message, PreCheckoutQuery
 from aiosend.types import Invoice
 
-from app.database.queries.balance_queries import deduct_balance, get_balance, top_up_balance
-from app.database.queries.categories_queries import (
+from app.database.queries.balance import deduct_balance, get_balance, top_up_balance
+from app.database.queries.category import (
     get_categories,
     get_category_name,
     get_category_parent_id,
     get_category_photo,
     get_subcategories,
 )
-from app.database.queries.filters_queries import mark_user_subscribed, mark_user_unsubscribed
-from app.database.queries.orders_queries import create_order
-from app.database.queries.payments_queries import (
+from app.database.queries.digital_stock import get_auto_quantity_stock, get_digital_stock_content, set_order_id
+from app.database.queries.filters import mark_user_subscribed, mark_user_unsubscribed
+from app.database.queries.manual_stock import get_manual_quantity_stock
+from app.database.queries.order import create_order
+from app.database.queries.payments import (
     create_payment,
     get_amount,
     get_payment,
     mark_payment_paid,
     update_payment_method,
 )
-from app.database.queries.products_queries import (
+from app.database.queries.product import (
     get_delivery_type,
     get_product,
     get_product_photo,
     get_products,
     set_out_of_stock,
 )
-from app.database.queries.stock_queries import (
-    get_auto_quantity_stock,
-    get_digital_stock_content,
-    get_manual_quantity_stock,
-    set_order_id,
-)
-from app.database.queries.user_queries import get_registered_at, new_registration
+from app.database.queries.user import new_registration
+from app.enums import DeliveryType, PaymentMethod
 from app.filters.common import IsSubscribed
 from app.keyboards import inline as kb
 from app.payments.crypto_bot import cp, create_crypto_bot_invoice
@@ -66,10 +64,22 @@ async def sync_subscription_status(bot: Bot, user_id: int) -> bool:
 
 @user.message(CommandStart())
 async def cmd_start(message: Message):
-    user_id = message.from_user.id
+    from_user = message.from_user
+
+    if from_user is None:
+        # TODO: добавить обработку в logger
+        return
+
+    user_id = from_user.id
     await new_registration(user_id)
 
-    subscribed = await sync_subscription_status(message.bot, user_id)
+    message_bot = message.bot
+
+    if message_bot is None:
+        # TODO: добавить обработку в logger
+        return
+
+    subscribed = await sync_subscription_status(message_bot, user_id)
 
     if subscribed:
         await show_main_menu(message, user_id)
@@ -84,15 +94,29 @@ async def cmd_start(message: Message):
 async def catalog(callback: CallbackQuery):
     await callback.answer("Loading...")
     categories = await get_categories()
+
+    if categories is None:
+        # TODO: добавить обработку в logger
+        return
+
     menu_photo = FSInputFile("images/system/catalog_photo.png")
 
-    await callback.message.edit_media(
-        media=InputMediaPhoto(
-            media=menu_photo,
-            caption="Каталог\nВыберите нужный товар",
-        ),
-        reply_markup=menu_builder(categories, "back_main"),
-    )
+    if isinstance(callback.message, Message):
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media=menu_photo,
+                caption="Каталог\nВыберите нужный товар",
+            ),
+            reply_markup=menu_builder(categories, "back_main"),
+        )
+
+    elif isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    else:
+        # TODO: вывести ошибку через logger
+        return
 
 
 @user.callback_query(F.data == "profile")
@@ -101,32 +125,51 @@ async def profile(callback: CallbackQuery):
     user_id = callback.from_user.id
     profile_photo = FSInputFile("images/system/profile_photo.png")
     balance = await get_balance(user_id)
-    await callback.message.edit_media(
-        media=InputMediaPhoto(
-            media=profile_photo,
-            caption=f"Профиль\n{balance} руб",
-        ),
-        reply_markup=kb.profile_keyboard,
-    )
+
+    if isinstance(callback.message, Message):
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media=profile_photo,
+                caption=f"Профиль\n{balance} руб",
+            ),
+            reply_markup=kb.profile_keyboard,
+        )
+
+    elif isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    else:
+        # TODO: вывести ошибку через logger
+        return
 
 
 @user.callback_query(F.data == "top_up")
 async def top_up(callback: CallbackQuery, state: FSMContext):
     await callback.answer("Loading...")
-    topup_photo = FSInputFile("images/system/topup.png")
+    top_up_photo = FSInputFile("images/system/topup.png")
 
-    await callback.message.edit_media(
-        media=InputMediaPhoto(
-            media=topup_photo,
-            caption="Введите сумму пополнения в рублях (минимум 50 руб)",
-        ),
-        reply_markup=kb.back_profile_keyboard,
-    )
-    await state.update_data(
-        bot_message_id=callback.message.message_id,
-        bot_chat_id=callback.message.chat.id,
-    )
-    await state.set_state(PaymentStates.amount)
+    if isinstance(callback.message, Message):
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media=top_up_photo,
+                caption="Введите сумму пополнения в рублях (минимум 50 руб)",
+            ),
+            reply_markup=kb.back_profile_keyboard,
+        )
+        await state.update_data(
+            bot_message_id=callback.message.message_id,
+            bot_chat_id=callback.message.chat.id,
+        )
+        await state.set_state(PaymentStates.amount)
+
+    elif isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    else:
+        # TODO: вывести ошибку через logger
+        return
 
 
 @user.message(PaymentStates.amount)
@@ -160,8 +203,13 @@ async def process_amount(message: Message, state: FSMContext, bot: Bot):
         await message.delete()
         return
 
-    # amount уже int, повторное присваивание message.text убрано — это и был баг
-    user_id = message.from_user.id
+    from_user = message.from_user
+
+    if from_user is None:
+        # TODO: ошибка через logger
+        return
+
+    user_id = from_user.id
     payment_id = await create_payment(user_id, amount)
     await state.update_data(payment_id=payment_id)
     await state.set_state(None)
@@ -184,12 +232,21 @@ async def process_sbp(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     payment_id = data["payment_id"]
 
-    await update_payment_method(payment_id, "sbp")
+    await update_payment_method(payment_id, PaymentMethod.SBP)
 
-    await callback.message.edit_caption(
-        caption="Сбпь",
-        reply_markup=kb.cancel_payment,
-    )
+    if isinstance(callback.message, Message):
+        await callback.message.edit_caption(
+            caption="Сбпь",
+            reply_markup=kb.cancel_payment,
+        )
+
+    elif isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    else:
+        # TODO: вывести ошибку через logger
+        return
 
 
 @user.callback_query(F.data == "crypto_bot_selection")
@@ -199,7 +256,7 @@ async def process_crypto_bot(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     payment_id = data["payment_id"]
 
-    await update_payment_method(payment_id, "crypto_bot")
+    await update_payment_method(payment_id, PaymentMethod.CRYPTO_BOT)
     amount = await get_amount(payment_id)
 
     payment_link = await create_crypto_bot_invoice(
@@ -207,18 +264,37 @@ async def process_crypto_bot(callback: CallbackQuery, state: FSMContext):
         payment_id,
         callback.message,
     )
+    if isinstance(callback.message, Message):
+        await callback.message.edit_caption(
+            caption=f"Оплата {amount} руб",
+            reply_markup=kb.create_crypto_bot_payment(payment_link),
+        )
 
-    await callback.message.edit_caption(
-        caption=f"Оплата {amount} руб",
-        reply_markup=kb.create_crypto_bot_payment(payment_link),
-    )
+    elif isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    else:
+        # TODO: вывести ошибку через logger
+        return
 
 
 @cp.invoice_paid()
 async def handle_payment(invoice: Invoice, message: Message):
-    payment_id = invoice.payload
-    charge_id = invoice.invoice_id
-    user_id = message.from_user.id
+    if invoice.payload is None:
+        # TODO: обработать ошибку через logger
+        return
+
+    payment_id = int(invoice.payload)
+    charge_id = str(invoice.invoice_id)
+
+    from_user = message.from_user
+
+    if from_user is None:
+        # TODO: обработать ошибку через logger
+        return
+
+    user_id = from_user.id
 
     if not await mark_payment_paid(payment_id, charge_id):
         # платёж уже был обработан ранее (повторный вебхук) либо payment_id некорректен —
@@ -226,7 +302,7 @@ async def handle_payment(invoice: Invoice, message: Message):
         logger.warning("Повторная или некорректная обработка оплаты payment_id=%s", payment_id)
         return
 
-    amount = await get_amount(payment_id)
+    amount = int(await get_amount(payment_id))
     await top_up_balance(user_id, amount)
     logger.info(
         "Зачислена оплата CryptoBot: payment_id=%s, user_id=%s, amount=%s руб, invoice_id=%s",
@@ -245,7 +321,7 @@ async def process_stars(callback: CallbackQuery, state: FSMContext, bot: Bot):
     data = await state.get_data()
     payment_id = data["payment_id"]
 
-    await update_payment_method(payment_id, "stars")
+    await update_payment_method(payment_id, PaymentMethod.STARS)
     amount = await get_amount(payment_id)
 
     payment_link = await create_stars_invoice_link(
@@ -253,16 +329,24 @@ async def process_stars(callback: CallbackQuery, state: FSMContext, bot: Bot):
         payment_id,
         amount,
     )
+    if isinstance(callback.message, Message):
+        await callback.message.edit_caption(
+            caption=f"Оплата {amount} руб",
+            reply_markup=kb.create_stars_payment(payment_link),
+        )
 
-    await callback.message.edit_caption(
-        caption=f"Оплата {amount} руб",
-        reply_markup=kb.create_stars_payment(payment_link),
-    )
+    elif isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    else:
+        # TODO: вывести ошибку через logger
+        return
 
 
 @user.pre_checkout_query()
 async def process_pre_checkout(pre_checkout_query: PreCheckoutQuery):
-    payment_id = pre_checkout_query.invoice_payload
+    payment_id = int(pre_checkout_query.invoice_payload)
     payment = await get_payment(payment_id)
 
     if payment is None or payment["status"] == "paid":
@@ -283,15 +367,27 @@ async def process_pre_checkout(pre_checkout_query: PreCheckoutQuery):
 
 @user.message(F.successful_payment)
 async def process_successful_payment(message: Message, bot: Bot):
-    payment_id = message.successful_payment.invoice_payload
-    telegram_charge_id = message.successful_payment.telegram_payment_charge_id
-    user_id = message.from_user.id
+    from_user = message.from_user
+
+    if not from_user:
+        # TODO: написать обработку ошибки
+        return
+
+    payment = message.successful_payment
+
+    if not payment:
+        # TODO: написать обработку ошибки
+        return
+
+    payment_id = int(payment.invoice_payload)
+    telegram_charge_id = payment.telegram_payment_charge_id
+    user_id = from_user.id
 
     if not await mark_payment_paid(payment_id, telegram_charge_id):
         logger.warning("Повторная или некорректная обработка оплаты payment_id=%s", payment_id)
         return
 
-    amount = await get_amount(payment_id)
+    amount = int(await get_amount(payment_id))
     await top_up_balance(user_id, amount)
     logger.info(
         "Зачислена оплата Stars: payment_id=%s, user_id=%s, amount=%s руб, charge_id=%s",
@@ -305,7 +401,11 @@ async def process_successful_payment(message: Message, bot: Bot):
 
 @user.callback_query(F.data.startswith("category_"))
 async def open_category(callback: CallbackQuery):
+    if callback.data is None:
+        # TODO: написать обработку ошибки
+        return
     category_id = int(callback.data.split("_")[1])
+
     category_name = await get_category_name(category_id)
     categories = await get_subcategories(category_id)
     parent_id = await get_category_parent_id(category_id)
@@ -324,17 +424,30 @@ async def open_category(callback: CallbackQuery):
         products = await get_products(category_id)
         reply_markup = products_builder(products, back_callback)
 
-    await callback.message.edit_media(
-        media=InputMediaPhoto(
-            media=photo,
-            caption=f"Категория: {category_name}",
-        ),
-        reply_markup=reply_markup,
-    )
+    if isinstance(callback.message, Message):
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media=photo,
+                caption=f"Категория: {category_name}",
+            ),
+            reply_markup=reply_markup,
+        )
+
+    elif isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    else:
+        # TODO: вывести ошибку через logger
+        return
 
 
 @user.callback_query(F.data.startswith("product_"))
 async def open_product(callback: CallbackQuery):
+    if callback.data is None:
+        # TODO: вывести ошибку через logger
+        return
+
     product_id = int(callback.data.split("_")[1])
     product = await get_product(product_id)
 
@@ -350,17 +463,40 @@ async def open_product(callback: CallbackQuery):
         return
 
     photo = FSInputFile(f"images/products/{product_photo}.png")
-    await callback.message.edit_media(
-        media=InputMediaPhoto(
-            media=photo,
-            caption=f"{product['name']}\n\n{product['description']}\n\nЦена: {product['price']}",
-        ),
-        reply_markup=product_builder(product_id, back_callback),
-    )
+    if isinstance(callback.message, Message):
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media=photo,
+                caption=f"{product['name']}\n\n{product['description']}\n\nЦена: {product['price']}",
+            ),
+            reply_markup=product_builder(product_id, back_callback),
+        )
+
+    elif isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    else:
+        # TODO: вывести ошибку через logger
+        return
 
 
 @user.callback_query(F.data.startswith("buy_"))
 async def process_buy(callback: CallbackQuery):
+    if callback.data is None:
+        # TODO: вывести ошибку через logger
+        return
+
+    if isinstance(callback.message, InaccessibleMessage):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
+
+    if not isinstance(callback.message, Message):
+        # TODO: вывести ошибку через logger
+        return
+
+    message = callback.message
+
     product_id = int(callback.data.split("_")[1])
     product = await get_product(product_id)
 
@@ -380,7 +516,7 @@ async def process_buy(callback: CallbackQuery):
             user_balance,
             product_price,
         )
-        await callback.message.edit_caption(
+        await message.edit_caption(
             caption=f"Нехватает {abs(user_balance - product_price)} руб",
             reply_markup=kb.not_money,
         )
@@ -388,10 +524,10 @@ async def process_buy(callback: CallbackQuery):
 
     delivery_type = await get_delivery_type(product_id)
 
-    if delivery_type == "auto":
+    if delivery_type == DeliveryType.AUTO:
         quantity_stock = await get_auto_quantity_stock(product_id)
         if quantity_stock < 1:
-            await callback.message.edit_caption(
+            await message.edit_caption(
                 caption="К сожалению товара нету в наличии",
                 reply_markup=kb.back_main_menu,
             )
@@ -408,13 +544,15 @@ async def process_buy(callback: CallbackQuery):
                 product_id,
                 product_price,
             )
-            await callback.message.edit_caption(
+            await message.edit_caption(
                 caption="Недостаточно средств",
                 reply_markup=kb.not_money,
             )
             return
 
-        order_id = await create_order(user_id, product_id, delivery_type, product_price)
+        order = await create_order(user_id, product_id, delivery_type, product_price)
+        order_id = order["order_id"]
+
         stock = await get_digital_stock_content(product_id)
 
         if stock is None:
@@ -429,7 +567,7 @@ async def process_buy(callback: CallbackQuery):
             # баланс уже списан, а товар кончился между проверкой и выдачей —
             # возвращаем деньги, чтобы не оставить пользователя без товара и без денег
             await top_up_balance(user_id, product_price)
-            await callback.message.edit_caption(
+            await message.edit_caption(
                 caption="К сожалению товара нету в наличии",
                 reply_markup=kb.back_main_menu,
             )
@@ -439,7 +577,7 @@ async def process_buy(callback: CallbackQuery):
         await set_order_id(stock["id"], order_id)
 
         try:
-            await callback.message.answer(stock["content"])
+            await message.answer(stock["content"])
         except Exception:
             # деньги уже списаны, а содержимое товара не доставлено пользователю
             logger.exception(
@@ -462,10 +600,10 @@ async def process_buy(callback: CallbackQuery):
             product_price,
         )
 
-    elif delivery_type == "manual":
+    elif delivery_type == DeliveryType.MANUAL:
         quantity_stock = await get_manual_quantity_stock(product_id)
         if quantity_stock < 1:
-            await callback.message.edit_caption(
+            await message.edit_caption(
                 caption="К сожалению товара нету в наличии",
                 reply_markup=kb.back_main_menu,
             )
@@ -480,13 +618,14 @@ async def process_buy(callback: CallbackQuery):
                 product_id,
                 product_price,
             )
-            await callback.message.edit_caption(
+            await message.edit_caption(
                 caption="Недостаточно средств",
                 reply_markup=kb.not_money,
             )
             return
 
-        order_id = await create_order(user_id, product_id, delivery_type, product_price)
+        order = await create_order(user_id, product_id, delivery_type, product_price)
+        order_id = order["order_id"]
         logger.info(
             "Создан заказ на ручную выдачу: user_id=%s, product_id=%s, order_id=%s, amount=%s руб",
             user_id,
@@ -500,13 +639,22 @@ async def process_buy(callback: CallbackQuery):
 @user.callback_query(F.data == "back_main")
 async def back_to_main(callback: CallbackQuery):
     user_id = callback.from_user.id
+    message = callback.message
+
+    if not isinstance(message, Message):
+        # TODO: написать обработку ошибки
+        return
+
+    if callback.bot is None:
+        # TODO: написать обработку ошибки
+        return
 
     subscribed = await sync_subscription_status(callback.bot, user_id)
 
     if subscribed:
-        await edit_main_menu(callback.message, user_id)
+        await edit_main_menu(message, user_id)
     else:
-        await callback.message.answer(
+        await message.answer(
             "Перед началом подпишитесь на наш канал:",
             reply_markup=kb.check_subscription_keyboard,
         )

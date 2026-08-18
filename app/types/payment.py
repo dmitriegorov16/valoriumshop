@@ -1,11 +1,14 @@
+from datetime import datetime
 from typing import TypedDict
 
+from app.enums import PaymentMethod, PaymentStatus
 
-class Payment(TypedDict):
+
+class PaymentType(TypedDict):
     id: int
     user_id: int
     amount: float
-    method: str | None
-    status: str
+    method: PaymentMethod | None
+    status: PaymentStatus
     external_id: str | None
-    created_at: str
+    created_at: datetime

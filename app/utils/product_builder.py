@@ -1,10 +1,10 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.types.products import Product
+from app.types.products import ProductType
 
 
-def products_builder(products: list[Product], back_callback: str) -> InlineKeyboardMarkup:
+def products_builder(products: list[ProductType], back_callback: str) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardBuilder()
     for product in products:
         keyboard.add(InlineKeyboardButton(text=product["name"], callback_data=f"product_{product['id']}"))

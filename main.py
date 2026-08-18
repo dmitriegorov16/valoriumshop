@@ -3,9 +3,10 @@ import logging
 import os
 
 from aiogram import Bot, Dispatcher
+from aiosend import CryptoPay
 from dotenv import load_dotenv
 
-from app.database.init import init_db
+from app.database.engine import init_db
 from app.payments.crypto_bot import cp
 from app.routers.register import register
 from app.routers.user import user
@@ -29,23 +30,25 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    bot = Bot(token=os.getenv("TELEGRAM_TOKEN"))
+    bot_token = os.getenv("TELEGRAM_TOKEN")
+    if not (bot_token and isinstance(cp, CryptoPay)):
+        logger.error("TELEGRAM_TOKEN не задан или CryptoPay не инициализирован — бот не запущен")
+        return
+
+    bot = Bot(bot_token)
     dp = Dispatcher()
     logger.info("Диспетчер инициализирован")
     dp.startup.register(startup)
     dp.shutdown.register(shutdown)
     dp.include_routers(user, register)
 
-    tasks = [
-        asyncio.create_task(dp.start_polling(bot)),
-        asyncio.create_task(cp.start_polling()),
-    ]
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-    for task in pending:
-        task.cancel()
-    await asyncio.gather(*pending, return_exceptions=True)
-    for task in done:
-        task.result()
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(dp.start_polling(bot, handle_signals=False))
+        tg.create_task(_poll_crypto_bot())
+
+
+async def _poll_crypto_bot() -> None:
+    await cp.start_polling()
 
 
 async def startup(dispatcher: Dispatcher):
