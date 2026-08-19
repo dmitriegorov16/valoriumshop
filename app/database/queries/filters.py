@@ -29,6 +29,6 @@ async def is_user_subscribed(user_id: int) -> bool:
         result = await session.execute(
             select(User).where(User.user_id == user_id),
         )
-        user = result.scalar_one()
+        user = result.scalar_one_or_none()
 
-        return user.is_sub
+        return user.is_sub if user is not None else False

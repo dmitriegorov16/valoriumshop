@@ -11,5 +11,6 @@ dependencies = [
     "asyncio>=4.0.0",
     "dotenv>=0.9.9",
     "greenlet>=3.5.5",
+    "pydantic-settings>=2.15.0",
     "sqlalchemy>=2.0.52",
 ]

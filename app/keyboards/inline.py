@@ -1,18 +1,12 @@
-import os
-
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from dotenv import load_dotenv
 
+from app.config import settings
 from app.database.queries.user import get_account_type
 from app.enums import AccountType
 
-load_dotenv()
-CHANNEL_NAME = os.getenv("CHANNEL_NAME")
-CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")
-
 check_subscription_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text=f"{CHANNEL_NAME}", url=f"https://t.me/{CHANNEL_USERNAME}")],
+        [InlineKeyboardButton(text=f"{settings.CHANNEL_NAME}", url=f"https://t.me/{settings.CHANNEL_USERNAME}")],
         [InlineKeyboardButton(text="Проверить подписку", callback_data="check_subscription")],
     ],
 )

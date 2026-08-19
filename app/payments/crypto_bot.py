@@ -5,10 +5,10 @@ import os
 from aiosend import TESTNET, CryptoPay
 from dotenv import load_dotenv
 
+from app.config import settings
+
 load_dotenv()
-token = os.getenv("CRYPTO_PAY_TOKEN")
-if not token:
-    raise
+token = settings.CRYPTO_PAY_TOKEN
 
 cp = CryptoPay(token, TESTNET)
 

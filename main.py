@@ -1,11 +1,10 @@
 import asyncio
 import logging
-import os
 
 from aiogram import Bot, Dispatcher
 from aiosend import CryptoPay
-from dotenv import load_dotenv
 
+from app.config import settings
 from app.database.engine import init_db
 from app.payments.crypto_bot import cp
 from app.routers.register import register
@@ -30,12 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    bot_token = os.getenv("TELEGRAM_TOKEN")
-    if not (bot_token and isinstance(cp, CryptoPay)):
-        logger.error("TELEGRAM_TOKEN не задан или CryptoPay не инициализирован — бот не запущен")
-        return
-
-    bot = Bot(bot_token)
+    bot = Bot(settings.TELEGRAM_TOKEN)
     dp = Dispatcher()
     logger.info("Диспетчер инициализирован")
     dp.startup.register(startup)
@@ -60,5 +54,4 @@ async def shutdown(dispatcher: Dispatcher):
 
 
 if __name__ == "__main__":
-    load_dotenv()
     asyncio.run(main())
