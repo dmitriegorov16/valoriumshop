@@ -638,6 +638,7 @@ async def process_buy(callback: CallbackQuery):
 
 @user.callback_query(F.data == "back_main")
 async def back_to_main(callback: CallbackQuery):
+    await callback.answer()
     user_id = callback.from_user.id
     message = callback.message
 
