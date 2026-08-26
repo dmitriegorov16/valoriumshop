@@ -10,12 +10,13 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-async def is_subscribed(bot: Bot, user_id):
+async def is_subscribed(bot: Bot, user_id) -> bool:
     try:
         member = await bot.get_chat_member(
             chat_id=settings.CHANNEL_ID,
             user_id=user_id,
         )
+
     except TelegramBadRequest:
         logger.exception(
             "Ошибка Telegram API при проверке подписки: user_id=%s, channel_id=%s",

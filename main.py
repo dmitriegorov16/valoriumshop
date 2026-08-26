@@ -6,10 +6,11 @@ from aiosend import CryptoPay
 
 from app.config import settings
 from app.database.engine import init_db
-from app.middlewares.errorhandling import ErrorHandlingMiddleware
+from app.middlewares.access import AccessMiddleware
+from app.middlewares.errors import ErrorHandlingMiddleware
+from app.middlewares.identity import IdentityMiddleware
 from app.middlewares.throttling import ThrottlingMiddleware
 from app.payments.crypto_bot import cp
-from app.routers.register import register
 from app.routers.user import user
 
 # _levelToName = {
@@ -36,7 +37,9 @@ async def main():
     logger.info("Диспетчер инициализирован")
     dp.startup.register(startup)
     dp.shutdown.register(shutdown)
-    dp.include_routers(user, register)
+    dp.include_router(user)
+    access_middleware = AccessMiddleware()
+    identity_middleware = IdentityMiddleware()
     error_handling_middleware = ErrorHandlingMiddleware()
     throttling_middleware = ThrottlingMiddleware()
 
@@ -44,6 +47,10 @@ async def main():
     dp.callback_query.outer_middleware(error_handling_middleware)
     dp.message.middleware(throttling_middleware)
     dp.callback_query.middleware(throttling_middleware)
+    dp.message.outer_middleware(identity_middleware)
+    dp.callback_query.outer_middleware(identity_middleware)
+    dp.message.outer_middleware(access_middleware)
+    dp.callback_query.outer_middleware(access_middleware)
 
     async with asyncio.TaskGroup() as tg:
         tg.create_task(dp.start_polling(bot, handle_signals=False))

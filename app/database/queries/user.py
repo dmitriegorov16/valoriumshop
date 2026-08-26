@@ -24,6 +24,14 @@ async def new_registration(user_id: int) -> bool:
             return True
 
 
+async def user_exists(user_id: int) -> bool:
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+
+        return bool(user)
+
+
 async def get_registered_at(user_id: int) -> datetime | None:
     async with async_session() as session:
         result = await session.execute(
