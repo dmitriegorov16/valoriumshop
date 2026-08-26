@@ -1,5 +1,4 @@
 import logging
-from operator import call
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
@@ -40,17 +39,16 @@ from app.filters.common import IsSubscribed
 from app.keyboards import inline as kb
 from app.payments.crypto_bot import cp, create_crypto_bot_invoice
 from app.payments.stars import create_stars_invoice_link
+from app.routers.registration import _start_registration
 from app.states import PaymentStates
 from app.utils.is_sub import is_subscribed
-from app.utils.menu import edit_main_menu, show_main_menu
+from app.utils.menu import _edit_main_menu, _show_main_menu
 from app.utils.menu_builder import menu_builder
 from app.utils.product_builder import product_builder, products_builder
 
 logger = logging.getLogger(__name__)
 
 user = Router()
-user.message.filter(IsSubscribed())
-user.callback_query.filter(IsSubscribed())
 
 
 async def sync_subscription_status(bot: Bot, user_id: int) -> bool:
@@ -63,7 +61,7 @@ async def sync_subscription_status(bot: Bot, user_id: int) -> bool:
 
 
 @user.message(CommandStart())
-async def cmd_start(message: Message):
+async def cmd_start(message: Message, is_new: bool, bot: Bot):
     from_user = message.from_user
 
     if from_user is None:
@@ -71,23 +69,33 @@ async def cmd_start(message: Message):
         return
 
     user_id = from_user.id
-    await new_registration(user_id)
+    if is_new:
+        await _start_registration(message, bot)
+    else:
+        subscribed = await sync_subscription_status(bot, user_id)
+        if subscribed:
+            await _show_main_menu(message, user_id)
+        else:
+            await message.answer(text="Подпишитесь на канал", reply_markup=kb.check_subscription_keyboard)
 
-    message_bot = message.bot
 
-    if message_bot is None:
-        # TODO: добавить обработку в logger
+@user.callback_query(F.data == "check_subscription")
+async def process_check_subscription(callback: CallbackQuery):
+    if callback.bot is None:
+        # TODO: вывести ошибку через logger
         return
 
-    subscribed = await sync_subscription_status(message_bot, user_id)
+    subscribed = await sync_subscription_status(callback.bot, callback.from_user.id)
+
+    if not isinstance(callback.message, Message):
+        # TODO: вывести ошибку про InaccessibleMessage через logger
+        return
 
     if subscribed:
-        await show_main_menu(message, user_id)
+        await callback.answer("✅ Вы подписаны")
+        await callback.message.delete()
     else:
-        await message.answer_photo(
-            "Перед началом подпишитесь на наш канал:",
-            reply_markup=kb.check_subscription_keyboard,
-        )
+        await callback.answer("❌ Вы не подписаны", show_alert=True)
 
 
 @user.callback_query(F.data == "catalog")
@@ -653,7 +661,7 @@ async def back_to_main(callback: CallbackQuery):
     subscribed = await sync_subscription_status(callback.bot, user_id)
 
     if subscribed:
-        await edit_main_menu(message, user_id)
+        await _edit_main_menu(message, user_id)
     else:
         await message.answer(
             "Перед началом подпишитесь на наш канал:",

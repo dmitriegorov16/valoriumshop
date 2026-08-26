@@ -90,3 +90,12 @@ class Payment(Base):
     status: Mapped[PaymentStatus] = mapped_column(str_enum(PaymentStatus), default=PaymentStatus.DRAFT)
     external_id: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+
+
+class UserAgreement(Base):
+    __tablename__ = "user_agreement"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user_info.user_id"))
+    offer_version: Mapped[str] = mapped_column(default="1.0")
+    accepted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))

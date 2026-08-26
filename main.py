@@ -11,6 +11,7 @@ from app.middlewares.errors import ErrorHandlingMiddleware
 from app.middlewares.identity import IdentityMiddleware
 from app.middlewares.throttling import ThrottlingMiddleware
 from app.payments.crypto_bot import cp
+from app.routers.registration import registration
 from app.routers.user import user
 
 # _levelToName = {
@@ -37,7 +38,7 @@ async def main():
     logger.info("Диспетчер инициализирован")
     dp.startup.register(startup)
     dp.shutdown.register(shutdown)
-    dp.include_router(user)
+    dp.include_routers(user, registration)
     access_middleware = AccessMiddleware()
     identity_middleware = IdentityMiddleware()
     error_handling_middleware = ErrorHandlingMiddleware()

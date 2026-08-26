@@ -1,4 +1,5 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.markdown import text
 
 from app.config import settings
 from app.database.queries.user import get_account_type
@@ -12,15 +13,12 @@ check_subscription_keyboard = InlineKeyboardMarkup(
 )
 
 
-# main_menu_keyboard = InlineKeyboardMarkup(
-#     inline_keyboard=[
-#         [
-#             InlineKeyboardButton(text="Каталог", callback_data="catalog"),
-#             InlineKeyboardButton(text="Профиль", callback_data="profile"),
-#         ],
-#         [InlineKeyboardButton(text="Поддержка", callback_data="support")],
-#     ],
-# )
+check_subscription_keyboard_new = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text=f"{settings.CHANNEL_NAME}", url=f"https://t.me/{settings.CHANNEL_USERNAME}")],
+        [InlineKeyboardButton(text="Я подписался", callback_data="new_check_subscription")],
+    ],
+)
 
 
 async def main_menu_keyboard(user_id: int):
@@ -112,4 +110,10 @@ not_money = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="Пополнить", callback_data="top_up")],
         [InlineKeyboardButton(text="Назад", callback_data="back_main")],
     ],
+)
+
+accept_offer_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Принять", callback_data="accept_offer")],
+    ]
 )

@@ -10,13 +10,15 @@ from app.enums import AccountType
 from app.keyboards.inline import check_subscription_keyboard
 from app.routers.user import sync_subscription_status
 
+_REGISTRATION_FLOW_CALLBACKS = ("check_subscription", "new_check_subscription", "accept_offer")
+
 
 def _is_subscription_check_trigger(event: TelegramObject) -> bool:
     return (
         isinstance(event, Message)
         and event.text == "/start"
         or isinstance(event, CallbackQuery)
-        and event.data == "check_subscription"
+        and event.data in _REGISTRATION_FLOW_CALLBACKS
     )
 
 
@@ -31,6 +33,8 @@ class AccessMiddleware(BaseMiddleware):
             db_user = data.get("db_user")
 
             if db_user:
+                data["is_new"] = False
+
                 account_type = None
                 if event.from_user:
                     account_type = await get_account_type(user_id=event.from_user.id)
@@ -68,3 +72,7 @@ class AccessMiddleware(BaseMiddleware):
                 if is_subscription_check_trigger:
                     data["is_new"] = True
                     return await handler(event, data)
+
+                if isinstance(event, CallbackQuery):
+                    await event.answer()
+                return

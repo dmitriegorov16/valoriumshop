@@ -3,7 +3,7 @@ from aiogram.types import FSInputFile, InputMediaPhoto, Message
 from app.keyboards import inline as kb
 
 
-async def show_main_menu(message: Message, user_id: int):
+async def _show_main_menu(message: Message, user_id: int):
     menu_photo = FSInputFile("images/system/menu_photo.png")
     keyboard = await kb.main_menu_keyboard(user_id)
     await message.answer_photo(
@@ -13,7 +13,7 @@ async def show_main_menu(message: Message, user_id: int):
     )
 
 
-async def edit_main_menu(message: Message, user_id: int):
+async def _edit_main_menu(message: Message, user_id: int):
     menu_photo = FSInputFile("images/system/menu_photo.png")
     keyboard = await kb.main_menu_keyboard(user_id)
     await message.edit_media(
