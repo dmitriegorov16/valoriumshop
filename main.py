@@ -38,7 +38,10 @@ async def main():
     logger.info("Диспетчер инициализирован")
     dp.startup.register(startup)
     dp.shutdown.register(shutdown)
-    dp.include_routers(user, registration)
+
+    dp.include_router(user)
+    dp.include_router(registration)
+
     access_middleware = AccessMiddleware()
     identity_middleware = IdentityMiddleware()
     error_handling_middleware = ErrorHandlingMiddleware()
