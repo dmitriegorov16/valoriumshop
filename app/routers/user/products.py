@@ -10,10 +10,27 @@ from app.database.queries.manual_stock import get_manual_quantity_stock
 from app.database.queries.order import create_order
 from app.database.queries.product import get_delivery_type, get_product, get_product_photo, set_out_of_stock
 from app.enums import DeliveryType
+from app.services.purchase import PurchaseError, PurchaseResult, buy_product
 from app.utils.product_builder import product_builder
 
 logger = logging.getLogger(__name__)
 product = Router()
+
+
+async def _render_purchase_error(
+    callback: CallbackQuery,
+    message: Message,
+    result: PurchaseResult,
+) -> None:
+    match result.error:
+        case PurchaseError.PRODUCT_NOT_FOUND:
+            await callback.answer("Товар недоступен", show_alert=True)
+        case PurchaseError.NOT_ENOUGH_MONEY:
+            await message.edit_caption(caption=f"Нехватает {result.shortfall} руб", reply_markup=kb.not_money)
+        case PurchaseError.BALANCE_RACE:
+            await message.edit_caption(caption="Недостаточно средств", reply_markup=kb.not_money)
+        case PurchaseError.OUT_OF_STOCK:
+            await message.edit_caption(caption="К сожалению товара нету в наличии", reply_markup=kb.back_main_menu)
 
 
 @product.callback_query(F.data.startswith("product_"))
@@ -58,153 +75,29 @@ async def open_product(callback: CallbackQuery):
 @product.callback_query(F.data.startswith("buy_"))
 async def process_buy(callback: CallbackQuery):
     if callback.data is None:
-        # TODO: вывести ошибку через logger
         return
-
-    if isinstance(callback.message, InaccessibleMessage):
-        # TODO: вывести ошибку про InaccessibleMessage через logger
-        return
-
-    if not isinstance(callback.message, Message):
-        # TODO: вывести ошибку через logger
-        return
-
-    message = callback.message
 
     product_id = int(callback.data.split("_")[1])
-    product = await get_product(product_id)
 
-    if product is None:
-        await callback.answer("Товар недоступен", show_alert=True)
+    result = await buy_product(user_id=callback.from_user.id, product_id=product_id)
+
+    if not result.ok and isinstance(callback.message, Message):
+        await _render_purchase_error(callback, callback.message, result)
         return
 
-    product_price = int(product["price"])
-    user_id = callback.from_user.id
-    user_balance = int(await get_balance(user_id))
-
-    if user_balance < product_price:
-        logger.warning(
-            "Недостаточно средств: user_id=%s, product_id=%s, balance=%s, price=%s",
-            user_id,
-            product_id,
-            user_balance,
-            product_price,
-        )
-        await message.edit_caption(
-            caption=f"Нехватает {abs(user_balance - product_price)} руб",
-            reply_markup=kb.not_money,
-        )
-        return
-
-    delivery_type = await get_delivery_type(product_id)
-
-    if delivery_type == DeliveryType.AUTO:
-        quantity_stock = await get_auto_quantity_stock(product_id)
-        if quantity_stock < 1:
-            await message.edit_caption(
-                caption="К сожалению товара нету в наличии",
-                reply_markup=kb.back_main_menu,
-            )
-            await set_out_of_stock(product_id)
-            return
-
-        # сначала атомарно списываем баланс, и только потом выдаём товар —
-        # иначе при гонке товар может уйти бесплатно
-        if not await deduct_balance(user_id, product_price):
-            logger.warning(
-                "Гонка при списании баланса: проверка прошла, списание не удалось — "
-                "user_id=%s, product_id=%s, price=%s",
-                user_id,
-                product_id,
-                product_price,
-            )
-            await message.edit_caption(
-                caption="Недостаточно средств",
-                reply_markup=kb.not_money,
-            )
-            return
-
-        order = await create_order(user_id, product_id, delivery_type, product_price)
-        order_id = order["order_id"]
-
-        stock = await get_digital_stock_content(product_id)
-
-        if stock is None:
-            logger.error(
-                "Товар не выдан после списания средств, выполняется возврат: "
-                "user_id=%s, product_id=%s, order_id=%s, amount=%s руб",
-                user_id,
-                product_id,
-                order_id,
-                product_price,
-            )
-            # баланс уже списан, а товар кончился между проверкой и выдачей —
-            # возвращаем деньги, чтобы не оставить пользователя без товара и без денег
-            await top_up_balance(user_id, product_price)
-            await message.edit_caption(
-                caption="К сожалению товара нету в наличии",
-                reply_markup=kb.back_main_menu,
-            )
-            await set_out_of_stock(product_id)
-            return
-
-        await set_order_id(stock["id"], order_id)
-
+    if result.delivery_type == DeliveryType.AUTO:
         try:
-            await message.answer(stock["content"])
+            if isinstance(callback.message, Message) and result.digital_content:
+                await callback.message.answer(result.digital_content)
         except Exception:
-            # деньги уже списаны, а содержимое товара не доставлено пользователю
             logger.exception(
-                "Не удалось отправить содержимое товара после списания средств: "
-                "user_id=%s, product_id=%s, order_id=%s, stock_id=%s, amount=%s руб",
-                user_id,
-                product_id,
-                order_id,
-                stock["id"],
-                product_price,
+                "Не удалось отправить содержимое товара после списания средств: order_id=%s",
+                result.order_id,
             )
             raise
-
-        logger.info(
-            "Цифровой товар выдан: user_id=%s, product_id=%s, order_id=%s, stock_id=%s, amount=%s руб",
-            user_id,
-            product_id,
-            order_id,
-            stock["id"],
-            product_price,
-        )
-
-    elif delivery_type == DeliveryType.MANUAL:
-        quantity_stock = await get_manual_quantity_stock(product_id)
-        if quantity_stock < 1:
-            await message.edit_caption(
-                caption="К сожалению товара нету в наличии",
-                reply_markup=kb.back_main_menu,
+    else:
+        if isinstance(callback.message, Message):
+            # MANUAL: уведомить, что заявка принята
+            await callback.message.edit_caption(
+                caption="Заявка принята, ожидайте выдачи", reply_markup=kb.back_main_menu
             )
-            await set_out_of_stock(product_id)
-            return
-
-        if not await deduct_balance(user_id, product_price):
-            logger.warning(
-                "Гонка при списании баланса: проверка прошла, списание не удалось — "
-                "user_id=%s, product_id=%s, price=%s",
-                user_id,
-                product_id,
-                product_price,
-            )
-            await message.edit_caption(
-                caption="Недостаточно средств",
-                reply_markup=kb.not_money,
-            )
-            return
-
-        order = await create_order(user_id, product_id, delivery_type, product_price)
-        order_id = order["order_id"]
-        logger.info(
-            "Создан заказ на ручную выдачу: user_id=%s, product_id=%s, order_id=%s, amount=%s руб",
-            user_id,
-            product_id,
-            order_id,
-            product_price,
-        )
-        # дописать manual выдачу

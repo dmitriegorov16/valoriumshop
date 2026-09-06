@@ -10,7 +10,7 @@ async def get_balance(user_id: int) -> int:
             select(User.balance).where(User.user_id == user_id),
         )
         balance = result.scalar_one()
-        return balance
+        return int(balance)
 
 
 async def top_up_balance(user_id: int, amount: int) -> bool:
