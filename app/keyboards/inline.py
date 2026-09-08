@@ -48,6 +48,22 @@ async def main_menu_keyboard(user_id: int):
         )
 
 
+# функция нужна для будущего (например колво юзеров)
+async def admin_menu_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Пользователи", callback_data="admin_users")],
+            [
+                InlineKeyboardButton(text="Статистика", callback_data="admin_stat"),
+                InlineKeyboardButton(text="Рассылка", callback_data="admin_rassilka"),
+            ],
+            [InlineKeyboardButton(text="Категории и товары", callback_data="admin_categories_products")],
+            [InlineKeyboardButton(text="Финансы", callback_data="admin_momey")],
+            [InlineKeyboardButton(text="Назад", callback_data="back_main")],
+        ]
+    )
+
+
 profile_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Пополнить", callback_data="top_up")],

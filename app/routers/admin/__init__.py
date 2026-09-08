@@ -1,0 +1,6 @@
+from aiogram import Router
+
+from app.routers.admin.menu import menu
+
+admin = Router()
+admin.include_router(menu)

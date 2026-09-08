@@ -5,8 +5,8 @@ import app.keyboards.inline as kb
 from app.database.queries.filters import mark_user_subscribed
 from app.database.queries.offer import create_agreement
 from app.database.queries.user import new_registration
-from app.utils.is_sub import is_subscribed
 from app.routers.user.utils import _edit_main_menu, _show_main_menu
+from app.utils.is_sub import is_subscribed
 
 registration = Router()
 

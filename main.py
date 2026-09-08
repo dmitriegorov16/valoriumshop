@@ -11,13 +11,14 @@ from app.middlewares.errors import ErrorHandlingMiddleware
 from app.middlewares.identity import IdentityMiddleware
 from app.middlewares.throttling import ThrottlingMiddleware
 from app.payments.crypto_bot import cp
+from app.routers.admin import admin
 from app.routers.registration import registration
 from app.routers.user import user
 
 # _levelToName = {
 #     CRITICAL: 'CRITICAL',
 #     ERROR: 'ERROR',
-#     WARNING: 'WARNING',
+#     WARNING: 'WARNING',≤
 #     INFO: 'INFO',
 #     DEBUG: 'DEBUG',
 #     NOTSET: 'NOTSET',
@@ -39,14 +40,18 @@ async def main():
     dp.startup.register(startup)
     dp.shutdown.register(shutdown)
 
+    # Роутеры
     dp.include_router(user)
     dp.include_router(registration)
+    dp.include_router(admin)
 
+    # Инит мидлеваеров
     access_middleware = AccessMiddleware()
     identity_middleware = IdentityMiddleware()
     error_handling_middleware = ErrorHandlingMiddleware()
     throttling_middleware = ThrottlingMiddleware()
 
+    # Привязка мидлеваеров
     dp.message.outer_middleware(error_handling_middleware)
     dp.callback_query.outer_middleware(error_handling_middleware)
     dp.message.middleware(throttling_middleware)
