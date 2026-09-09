@@ -1,7 +1,9 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.markdown import text
 
 from app.config import settings
+from app.database.queries.category import get_categories
 from app.database.queries.user import get_account_type
 from app.enums import AccountType
 
@@ -57,11 +59,27 @@ async def admin_menu_keyboard():
                 InlineKeyboardButton(text="Статистика", callback_data="admin_stat"),
                 InlineKeyboardButton(text="Рассылка", callback_data="admin_rassilka"),
             ],
-            [InlineKeyboardButton(text="Категории и товары", callback_data="admin_categories_products")],
+            [InlineKeyboardButton(text="Категории и товары", callback_data="admin_catalog")],
             [InlineKeyboardButton(text="Финансы", callback_data="admin_momey")],
             [InlineKeyboardButton(text="Назад", callback_data="back_main")],
         ]
     )
+
+
+async def admin_catalog_keyboard() -> InlineKeyboardMarkup:
+    keyboard = InlineKeyboardBuilder()
+    categories = await get_categories()
+
+    if not categories:
+        keyboard.add(InlineKeyboardButton(text="Пока категорий нету"))
+    else:
+        for category in categories or []:
+            keyboard.add(InlineKeyboardButton(text=category["name"], callback_data=f"admin_category_{category['id']}"))
+
+    keyboard.row(InlineKeyboardButton(text="Создать категорию", callback_data="create_category"))
+    keyboard.row(InlineKeyboardButton(text="Назад", callback_data="admin_panel"))
+
+    return keyboard.as_markup()
 
 
 profile_keyboard = InlineKeyboardMarkup(
