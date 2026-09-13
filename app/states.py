@@ -7,3 +7,8 @@ class PaymentStates(StatesGroup):
 
 class RegistrationStates(StatesGroup):
     user_id = State()
+
+
+class CreateCategoryStates(StatesGroup):
+    category_name = State()
+    serial_number = State()

@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     STARS_EXCHANGE_RATE: float
     CRYPTO_PAY_TOKEN: str
     DB_PATH: str = "data.sqlite"
+    MAXIMUM_LENGTH_CATEGORY: int = 20
+    MINIMUM_LENGTH_CATEGORY: int = 3
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

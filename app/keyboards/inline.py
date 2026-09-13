@@ -1,3 +1,4 @@
+from aiogram.enums import ButtonStyle
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.markdown import text
@@ -34,7 +35,7 @@ async def main_menu_keyboard(user_id: int):
                     InlineKeyboardButton(text="Профиль", callback_data="profile"),
                 ],
                 [InlineKeyboardButton(text="Поддержка", callback_data="support")],
-                [InlineKeyboardButton(text="Админ панель", callback_data="admin_panel")],
+                [InlineKeyboardButton(text="Админ панель", callback_data="admin_panel", style=ButtonStyle.SUCCESS)],
             ]
         )
 
@@ -61,7 +62,7 @@ async def admin_menu_keyboard():
             ],
             [InlineKeyboardButton(text="Категории и товары", callback_data="admin_catalog")],
             [InlineKeyboardButton(text="Финансы", callback_data="admin_momey")],
-            [InlineKeyboardButton(text="Назад", callback_data="back_main")],
+            [InlineKeyboardButton(text="Назад", callback_data="back_main", style=ButtonStyle.PRIMARY)],
         ]
     )
 
@@ -71,35 +72,42 @@ async def admin_catalog_keyboard() -> InlineKeyboardMarkup:
     categories = await get_categories()
 
     if not categories:
-        keyboard.add(InlineKeyboardButton(text="Пока категорий нету"))
+        keyboard.add(InlineKeyboardButton(text="Пока категорий нету", callback_data="none"))
     else:
         for category in categories or []:
             keyboard.add(InlineKeyboardButton(text=category["name"], callback_data=f"admin_category_{category['id']}"))
 
     keyboard.row(InlineKeyboardButton(text="Создать категорию", callback_data="create_category"))
-    keyboard.row(InlineKeyboardButton(text="Назад", callback_data="admin_panel"))
+    keyboard.row(InlineKeyboardButton(text="Назад", callback_data="admin_panel", style=ButtonStyle.PRIMARY))
 
     return keyboard.as_markup()
+
+
+admin_back_category = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data="admin_catalog", style=ButtonStyle.PRIMARY)],
+    ]
+)
 
 
 profile_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Пополнить", callback_data="top_up")],
         [InlineKeyboardButton(text="Рефералы", callback_data="referrals")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_main")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_main", style=ButtonStyle.PRIMARY)],
     ]
 )
 
 
 back_main_menu = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Назад", callback_data="back_main")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_main", style=ButtonStyle.PRIMARY)],
     ]
 )
 
 back_profile_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Назад", callback_data="profile")],
+        [InlineKeyboardButton(text="Назад", callback_data="profile", style=ButtonStyle.PRIMARY)],
     ]
 )
 
@@ -149,5 +157,13 @@ not_money = InlineKeyboardMarkup(
 accept_offer_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Принять", callback_data="accept_offer")],
+    ]
+)
+
+
+render_name_error_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Заново", callback_data="create_category")],
+        [InlineKeyboardButton(text="Отмена", callback_data="admin_catalog")],
     ]
 )

@@ -7,7 +7,7 @@ from cachetools import TTLCache
 
 
 class ThrottlingMiddleware(BaseMiddleware):
-    def __init__(self, rate_limit: float = 2, answer_range: float = 4):
+    def __init__(self, rate_limit: float = 0.5, answer_range: float = 4):
         self.cache: TTLCache[int, bool] = TTLCache(maxsize=10_000, ttl=rate_limit)
         self.throttle_cache: TTLCache[int, bool] = TTLCache(maxsize=10_000, ttl=answer_range)
 
@@ -32,8 +32,10 @@ class ThrottlingMiddleware(BaseMiddleware):
                 self.throttle_cache[user_id] = True
 
                 if isinstance(event, Message):
-                    await event.answer("Пожалуйста, подождите")
-                    print("юзер ждет message")
+                    print("рано")
+                    # TODO: Подумать как нормально выводить антитротлинг сообщение
+                    # await event.answer("Пожалуйста, подождите")
+                    # print("юзер ждет message")
                 elif isinstance(event, CallbackQuery):
                     await event.answer("Пожалуйста, подождите", show_alert=True)
                     print("alert отправлен успешно")

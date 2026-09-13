@@ -1,9 +1,54 @@
-from aiogram import F, Router
+import enum
+from dataclasses import dataclass
+from enum import auto
+
+from aiogram import Bot, F, Router
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from app.keyboards.inline import admin_catalog_keyboard
+from app.config import settings
+from app.keyboards.inline import admin_back_category, admin_catalog_keyboard, render_name_error_keyboard
+from app.states import CreateCategoryStates
 
 catalog = Router()
+
+
+class CategoryNameError(enum.Enum):
+    LONG_STRING = auto()
+    SHORT_STRING = auto()
+
+
+@dataclass
+class ValidatorResult:
+    ok: bool
+    error: CategoryNameError | None = None
+
+
+def _name_validator(name: str) -> ValidatorResult:
+    if settings.MINIMUM_LENGTH_CATEGORY > len(name):
+        return ValidatorResult(ok=False, error=CategoryNameError.SHORT_STRING)
+
+    elif settings.MAXIMUM_LENGTH_CATEGORY < len(name):
+        return ValidatorResult(ok=False, error=CategoryNameError.LONG_STRING)
+
+    return ValidatorResult(ok=True)
+
+
+async def _render_name_error(message: Message, prompt_message_id: int, error: CategoryNameError):
+    match error:
+        case CategoryNameError.LONG_STRING:
+            text = f"⚠️ Название слишком длинное\nмаксимальная длина: {settings.MAXIMUM_LENGTH_CATEGORY}"
+        case CategoryNameError.SHORT_STRING:
+            text = f"⚠️ Название слишком короткое\nминимальная длина: {settings.MINIMUM_LENGTH_CATEGORY}"
+
+    if isinstance(message.bot, Bot):
+        await message.bot.edit_message_caption(
+            chat_id=message.chat.id,
+            message_id=prompt_message_id,
+            caption=text,
+            reply_markup=render_name_error_keyboard,
+        )
+        await message.delete()
 
 
 @catalog.callback_query(F.data == "admin_catalog")
@@ -12,10 +57,37 @@ async def catalog_menu(callback: CallbackQuery):
         keyboard = await admin_catalog_keyboard()
 
         if not keyboard:
-            print("нету")
             return
 
         await callback.message.edit_caption(
             caption="Категории и товары",
             reply_markup=keyboard,
         )
+
+
+@catalog.callback_query(F.data == "create_category")
+async def create_category(callback: CallbackQuery, state: FSMContext):
+    if isinstance(callback.message, Message):
+        await state.set_state(CreateCategoryStates.category_name)
+        await state.update_data(prompt_message_id=callback.message.message_id)
+        await callback.message.edit_caption(
+            caption="Введите название категории",
+            reply_markup=admin_back_category,
+        )
+
+
+@catalog.message(CreateCategoryStates.category_name)
+async def process_create_category(message: Message, state: FSMContext):
+    category_name = message.text
+    data = await state.get_data()
+    prompt_message_id = data.get("prompt_message_id")
+
+    if isinstance(category_name, str) and prompt_message_id is not None:
+        result = _name_validator(name=category_name)
+
+        if result.ok:
+            # все хорошо идем дальше
+            pass
+        else:
+            assert result.error
+            await _render_name_error(message=message, prompt_message_id=prompt_message_id, error=result.error)

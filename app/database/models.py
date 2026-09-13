@@ -36,6 +36,7 @@ class Category(Base):
     category_id: Mapped[int] = mapped_column(primary_key=True)
     category_name: Mapped[str] = mapped_column(Text)
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("categories.category_id"), default=None)
+    position_id: Mapped[int] = mapped_column(primary_key=True)
     image: Mapped[str | None] = mapped_column(Text, default=None)
 
 
