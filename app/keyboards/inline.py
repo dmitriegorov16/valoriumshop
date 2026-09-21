@@ -89,6 +89,12 @@ admin_back_category = InlineKeyboardMarkup(
     ]
 )
 
+admin_category_serial = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Оставить умолчанию", callback_data="admin_category_po_default")],
+        [InlineKeyboardButton(text="Отмена", callback_data="admin_catalog", style=ButtonStyle.PRIMARY)],
+    ]
+)
 
 profile_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[

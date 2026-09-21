@@ -7,7 +7,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from app.config import settings
-from app.keyboards.inline import admin_back_category, admin_catalog_keyboard, render_name_error_keyboard
+from app.keyboards.inline import (
+    admin_back_category,
+    admin_catalog_keyboard,
+    admin_category_serial,
+    render_name_error_keyboard,
+)
 from app.states import CreateCategoryStates
 
 catalog = Router()
@@ -70,6 +75,7 @@ async def create_category(callback: CallbackQuery, state: FSMContext):
     if isinstance(callback.message, Message):
         await state.set_state(CreateCategoryStates.category_name)
         await state.update_data(prompt_message_id=callback.message.message_id)
+
         await callback.message.edit_caption(
             caption="Введите название категории",
             reply_markup=admin_back_category,
@@ -86,8 +92,19 @@ async def process_create_category(message: Message, state: FSMContext):
         result = _name_validator(name=category_name)
 
         if result.ok:
-            # все хорошо идем дальше
-            pass
+            await state.update_data(category_name=category_name)
+
+            if isinstance(message.bot, Bot):
+                await message.bot.edit_message_caption(
+                    chat_id=message.chat.id,
+                    message_id=prompt_message_id,
+                    caption="Введите номер отображения",
+                    reply_markup=admin_category_serial,
+                )
+                await message.delete()
+
+            await state.set_state(CreateCategoryStates.serial_number)
+
         else:
             assert result.error
             await _render_name_error(message=message, prompt_message_id=prompt_message_id, error=result.error)
