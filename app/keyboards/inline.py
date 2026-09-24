@@ -23,6 +23,13 @@ check_subscription_keyboard_new = InlineKeyboardMarkup(
     ],
 )
 
+confirm_create_category = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Подтвердить", callback_data="admin_confirm_create_category")],
+        [InlineKeyboardButton(text="Отмена", callback_data="admin_catalog")],
+    ]
+)
+
 
 async def main_menu_keyboard(user_id: int):
     account_type = await get_account_type(user_id)

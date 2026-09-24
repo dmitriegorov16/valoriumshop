@@ -11,6 +11,7 @@ from app.keyboards.inline import (
     admin_back_category,
     admin_catalog_keyboard,
     admin_category_serial,
+    confirm_create_category,
     render_name_error_keyboard,
 )
 from app.states import CreateCategoryStates
@@ -54,6 +55,10 @@ async def _render_name_error(message: Message, prompt_message_id: int, error: Ca
             reply_markup=render_name_error_keyboard,
         )
         await message.delete()
+
+
+async def _process_category_serial(message: Message, state: FSMContext):
+    pass
 
 
 @catalog.callback_query(F.data == "admin_catalog")
@@ -108,3 +113,36 @@ async def process_create_category(message: Message, state: FSMContext):
         else:
             assert result.error
             await _render_name_error(message=message, prompt_message_id=prompt_message_id, error=result.error)
+
+
+@catalog.message(CreateCategoryStates.serial_number)
+async def pr_state(message: Message, state: FSMContext):
+    position_id = message.text
+    await state.update_data(position_id=position_id)
+    data = await state.get_data()
+    prompt_message_id = data.get("prompt_message_id")
+
+    if isinstance(message.bot, Bot):
+        await message.bot.edit_message_caption(
+            chat_id=message.chat.id,
+            message_id=prompt_message_id,
+            caption=f"Потвердите создание\nНазвание категории: {data['category_name']}\nНомер отображения: {position_id}",
+            reply_markup=confirm_create_category,
+        )
+        await message.delete()
+
+
+@catalog.callback_query(F.data == "admin_category_po_default")
+async def pr_callback(callback: CallbackQuery, state: FSMContext):
+    position_id = "set_default"
+    await state.update_data(position_id=position_id)
+    data = await state.get_data()
+    prompt_message_id = data.get("prompt_message_id")
+
+    if isinstance(callback.bot, Bot) and isinstance(callback.message, Message):
+        await callback.bot.edit_message_caption(
+            chat_id=callback.message.chat.id,
+            message_id=prompt_message_id,
+            caption=f"Потвердите создание\nНазвание категории: {data['category_name']}\nНомер отображения: {position_id}",
+            reply_markup=confirm_create_category,
+        )

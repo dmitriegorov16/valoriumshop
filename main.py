@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 async def main():
     bot = Bot(settings.TELEGRAM_TOKEN)
+
     dp = Dispatcher()
     logger.info("Диспетчер инициализирован")
     dp.startup.register(startup)
