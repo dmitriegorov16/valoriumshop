@@ -78,7 +78,7 @@ async def _manual_buy(user_id: int, product_id: int, product_price: int) -> Purc
     return PurchaseResult(ok=True, order_id=order_id, delivery_type=DeliveryType.MANUAL, digital_content="заглушка")
 
 
-async def buy_product(user_id: int, product_id: int) -> PurchaseResult:
+async def buy_product(user_id: int, product_id: int) -> PurchaseResult | None:
     product = await get_product(product_id)
 
     if product is None:
@@ -105,3 +105,4 @@ async def buy_product(user_id: int, product_id: int) -> PurchaseResult:
             product_id=product_id,
             product_price=product_price,
         )
+    return None

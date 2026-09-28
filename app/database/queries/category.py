@@ -69,7 +69,6 @@ async def get_category_parent_id(category_id: int) -> int | None:
         result = await session.execute(
             select(Category.parent_id).where(Category.category_id == category_id),
         )
-        ProcessLookupError
 
         parent_id = result.scalar_one_or_none()
         return parent_id
@@ -83,3 +82,40 @@ async def get_category_photo(category_id: int) -> str | None:
 
         category_photo = result.scalar_one_or_none()
         return category_photo
+
+
+async def get_category_serial_number(serial_number: int) -> int | None:
+    async with async_session() as session:
+        result = await session.execute(
+            select(Category.serial_number).where(Category.serial_number == serial_number),
+        )
+
+        result = result.scalar_one_or_none()
+        return result
+
+
+# TODO: мб сделать так что если в бд вместо фото флаг например "not_photo" то он будет брать
+# вышестоящее фото а если и его нет то дефолтное фото
+
+
+async def create_new_category(
+    name: str, serial_number: int, parent_id: int | None = None, image: str | None = None
+) -> CategoryType:
+    async with async_session() as session:
+        category = Category(
+            category_name=name,
+            serial_number=serial_number,
+            parent_id=parent_id,
+            image=image,
+        )
+
+        session.add(category)
+        await session.commit()
+
+
+        return CategoryType(
+            id=category.category_id,
+            name=category.category_name,
+            parent_id=category.parent_id,
+            photo=category.image,
+        )

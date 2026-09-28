@@ -30,6 +30,9 @@ class ValidatorResult:
     error: CategoryNameError | None = None
 
 
+# TODO: добавить возможность добавить фото
+
+
 def _name_validator(name: str) -> ValidatorResult:
     if settings.MINIMUM_LENGTH_CATEGORY > len(name):
         return ValidatorResult(ok=False, error=CategoryNameError.SHORT_STRING)
@@ -47,8 +50,10 @@ async def _render_name_error(message: Message, prompt_message_id: int, error: Ca
         case CategoryNameError.SHORT_STRING:
             text = f"⚠️ Название слишком короткое\nминимальная длина: {settings.MINIMUM_LENGTH_CATEGORY}"
 
-    if isinstance(message.bot, Bot):
-        await message.bot.edit_message_caption(
+    bot = message.bot
+
+    if isinstance(bot, Bot):
+        await bot.edit_message_caption(
             chat_id=message.chat.id,
             message_id=prompt_message_id,
             caption=text,
@@ -130,7 +135,7 @@ async def pr_state(message: Message, state: FSMContext):
         await bot.edit_message_caption(
             chat_id=message.chat.id,
             message_id=prompt_message_id,
-            caption=f"Потвердите создание\nНазвание категории: {data['category_name']}\nНомер отображения: {position_id}",
+            caption=f"Подтвердите создание\nНазвание категории: {data['category_name']}\nНомер отображения: {position_id}",
             reply_markup=confirm_create_category,
         )
         await message.delete()
@@ -148,6 +153,12 @@ async def pr_callback(callback: CallbackQuery, state: FSMContext):
         await bot.edit_message_caption(
             chat_id=callback.message.chat.id,
             message_id=prompt_message_id,
-            caption=f"Потвердите создание\nНазвание категории: {data['category_name']}\nНомер отображения: {position_id}",
+            caption=f"Подтвердите создание\nНазвание категории: {data['category_name']}\nНомер отображения: По умолчанию",
             reply_markup=confirm_create_category,
         )
+
+
+@catalog.callback_query(F.data == "admin_confirm_create_category")
+async def _confirm_create_category(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    prompt_message_id = data.get("prompt_message_id")
