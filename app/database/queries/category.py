@@ -69,6 +69,7 @@ async def get_category_parent_id(category_id: int) -> int | None:
         result = await session.execute(
             select(Category.parent_id).where(Category.category_id == category_id),
         )
+        ProcessLookupError
 
         parent_id = result.scalar_one_or_none()
         return parent_id

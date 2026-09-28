@@ -1,4 +1,4 @@
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import func, select, update
 
 from app.database.engine import async_session
 from app.database.models import DigitalStock
@@ -22,8 +22,12 @@ async def get_digital_stock_content(product_id) -> dict | None:
     async with async_session() as session:
         query = (
             select(DigitalStock.id)
-            .where(DigitalStock.product_id == product_id, DigitalStock.is_sold == False)
+            .where(
+                DigitalStock.product_id == product_id,
+                DigitalStock.is_sold == False,
+            )
             .limit(1)
+
         )
 
         result = await session.execute(

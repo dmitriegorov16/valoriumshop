@@ -99,8 +99,10 @@ async def process_create_category(message: Message, state: FSMContext):
         if result.ok:
             await state.update_data(category_name=category_name)
 
-            if isinstance(message.bot, Bot):
-                await message.bot.edit_message_caption(
+            bot = message.bot
+
+            if isinstance(bot, Bot):
+                await bot.edit_message_caption(
                     chat_id=message.chat.id,
                     message_id=prompt_message_id,
                     caption="Введите номер отображения",
@@ -111,8 +113,8 @@ async def process_create_category(message: Message, state: FSMContext):
             await state.set_state(CreateCategoryStates.serial_number)
 
         else:
-            assert result.error
-            await _render_name_error(message=message, prompt_message_id=prompt_message_id, error=result.error)
+            if isinstance(prompt_message_id, int) and isinstance(result.error, CategoryNameError):
+                await _render_name_error(message=message, prompt_message_id=prompt_message_id, error=result.error)
 
 
 @catalog.message(CreateCategoryStates.serial_number)
@@ -122,8 +124,10 @@ async def pr_state(message: Message, state: FSMContext):
     data = await state.get_data()
     prompt_message_id = data.get("prompt_message_id")
 
-    if isinstance(message.bot, Bot):
-        await message.bot.edit_message_caption(
+    bot = message.bot
+
+    if isinstance(bot, Bot):
+        await bot.edit_message_caption(
             chat_id=message.chat.id,
             message_id=prompt_message_id,
             caption=f"Потвердите создание\nНазвание категории: {data['category_name']}\nНомер отображения: {position_id}",
@@ -138,9 +142,10 @@ async def pr_callback(callback: CallbackQuery, state: FSMContext):
     await state.update_data(position_id=position_id)
     data = await state.get_data()
     prompt_message_id = data.get("prompt_message_id")
+    bot = callback.bot
 
-    if isinstance(callback.bot, Bot) and isinstance(callback.message, Message):
-        await callback.bot.edit_message_caption(
+    if isinstance(bot, Bot) and isinstance(callback.message, Message):
+        await bot.edit_message_caption(
             chat_id=callback.message.chat.id,
             message_id=prompt_message_id,
             caption=f"Потвердите создание\nНазвание категории: {data['category_name']}\nНомер отображения: {position_id}",
