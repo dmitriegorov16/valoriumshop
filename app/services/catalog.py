@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import auto
 
 from app.database.queries.category import create_new_category, get_category_serial_number
+from app.types.categories import CategoryType
 
 
 class CreateCategoryResultError(enum.Enum):
@@ -29,10 +30,17 @@ async def create_category(name: str, serial_number: int, set_default: bool) -> C
     # Потом создаем категорию с этим именем и номером отображения.
 
     if set_default:
-        # Если установлено значение по умолчанию, то мы получаем максимальный номер отображения
-        pass
+        category = await create_new_category(name=name, serial_number=None)
+
+        if category is not None:
+            return CreateCategoryResult(ok=True)
+
+        return CreateCategoryResult(ok=False, error=CreateCategoryResultError.CATEGORY_CREATE_ERROR)
 
     else:
+        # TODO: при возвращение SERIAL_NUMBER_EXISTS бот пишет сместить ли и если да то в какую сторону.
+        # Если да то смещаем все категории с этим номером и выше на 1 вверх.
+
         # Если не установлено значение по умолчанию, то мы проверяем, есть ли категория с таким номером отображения
         is_serial = await _is_category_serial_exists(serial_number)
 
@@ -43,6 +51,6 @@ async def create_category(name: str, serial_number: int, set_default: bool) -> C
             category = await create_new_category(name=name, serial_number=serial_number)
 
             if category is not None:
-                return CreateCategoryResult(ok=False, error=CreateCategoryResultError.CATEGORY_CREATE_ERROR)
+                return CreateCategoryResult(ok=True)
 
-    return CreateCategoryResult(ok=True)
+            return CreateCategoryResult(ok=False, error=CreateCategoryResultError.CATEGORY_CREATE_ERROR)

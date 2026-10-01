@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 
 from app.database.engine import async_session
 from app.database.models import Category
@@ -99,19 +100,41 @@ async def get_category_serial_number(serial_number: int) -> int | None:
 
 
 async def create_new_category(
-    name: str, serial_number: int, parent_id: int | None = None, image: str | None = None
-) -> CategoryType:
+    name: str, serial_number: int | None, parent_id: int | None = None, image: str | None = None
+) -> CategoryType | None:
     async with async_session() as session:
-        category = Category(
-            category_name=name,
-            serial_number=serial_number,
-            parent_id=parent_id,
-            image=image,
-        )
+        if not serial_number:
+            try:
+                result = await session.execute(
+                    select(Category.serial_number).order_by(Category.serial_number.desc()).limit(1)
+                )
+                serial_number = result.scalar_one()
+
+            except NoResultFound:
+                # TODO: логирование ошибки
+                return None
+            except SQLAlchemyError:
+                # TODO: логирование ошибки
+                return None
+
+            # Если serial_number не указан, то он указывается автоматически
+            category = Category(
+                category_name=name,
+                serial_number=serial_number + 1,
+                parent_id=parent_id,
+                image=image,
+            )
+
+        else:
+            category = Category(
+                category_name=name,
+                serial_number=serial_number,
+                parent_id=parent_id,
+                image=image,
+            )
 
         session.add(category)
         await session.commit()
-
 
         return CategoryType(
             id=category.category_id,
